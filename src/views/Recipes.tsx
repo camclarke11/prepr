@@ -22,7 +22,14 @@ export function RecipesView() {
   return (
     <div>
       <div style={{ position: 'relative', marginBottom: 22, maxWidth: 420 }}>
-        <span style={{ position: 'absolute', left: 15, top: '50%', transform: 'translateY(-50%)' }}>
+        <span
+          style={{
+            position: 'absolute',
+            left: 15,
+            top: '50%',
+            transform: 'translateY(-50%)',
+          }}
+        >
           <SearchIcon color={p.textFaint} />
         </span>
         <input

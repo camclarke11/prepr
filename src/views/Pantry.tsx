@@ -33,13 +33,20 @@ export function PantryView() {
       >
         <span style={{ fontSize: 22 }}>🥫</span>
         <div style={{ fontSize: 14, color: p.accentTintText, lineHeight: 1.4 }}>
-          <b>{pantry.length} staples on hand.</b> Items here are skipped when you add
-          a recipe to your list.
+          <b>{pantry.length} staples on hand.</b> Items here are skipped when you add a
+          recipe to your list.
         </div>
       </div>
 
       <div style={{ position: 'relative', marginBottom: 20, maxWidth: 420 }}>
-        <span style={{ position: 'absolute', left: 15, top: '50%', transform: 'translateY(-50%)' }}>
+        <span
+          style={{
+            position: 'absolute',
+            left: 15,
+            top: '50%',
+            transform: 'translateY(-50%)',
+          }}
+        >
           <SearchIcon color={p.textFaint} />
         </span>
         <input

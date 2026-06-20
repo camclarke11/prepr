@@ -32,9 +32,7 @@ export const MEMBER_COLORS = [
 ];
 
 export function categoryByName(name: string): Category {
-  return (
-    CATEGORIES.find((c) => c.name === name) ?? CATEGORIES[CATEGORIES.length - 1]
-  );
+  return CATEGORIES.find((c) => c.name === name) ?? CATEGORIES[CATEGORIES.length - 1];
 }
 
 /** Light + dark palette. The design ships light; dark is a tuned complement. */

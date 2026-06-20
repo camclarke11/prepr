@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { App } from './App';
@@ -15,9 +15,7 @@ function renderApp() {
 describe('App (integration)', () => {
   it('renders the shopping list with seed items', () => {
     renderApp();
-    expect(
-      screen.getByRole('heading', { name: 'Shopping list' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Shopping list' })).toBeInTheDocument();
     expect(screen.getByText('Your list')).toBeInTheDocument();
     // A seeded item.
     expect(screen.getAllByText('Bananas').length).toBeGreaterThan(0);
@@ -63,8 +61,39 @@ describe('App (integration)', () => {
     const user = userEvent.setup();
     renderApp();
     await user.click(screen.getByRole('button', { name: /Dark mode/i }));
-    expect(
-      screen.getByRole('button', { name: /Light mode/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Light mode/i })).toBeInTheDocument();
+  });
+});
+
+describe('App (mobile layout)', () => {
+  afterEach(() => {
+    // Restore the desktop default from the global setup.
+    window.matchMedia = (query: string) =>
+      ({
+        matches: false,
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }) as unknown as MediaQueryList;
+  });
+
+  it('shows the bottom nav and hides the sidebar on small screens', () => {
+    window.matchMedia = (query: string) =>
+      ({
+        matches: true,
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }) as unknown as MediaQueryList;
+    renderApp();
+    // Bottom nav uses short labels; sidebar-only "Dark mode" button is absent.
+    expect(screen.getByRole('button', { name: /^List/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Dark mode/i })).toBeNull();
   });
 });

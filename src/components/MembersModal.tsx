@@ -58,7 +58,14 @@ export function MembersModal() {
       </div>
 
       <div style={{ padding: '18px 22px 24px' }}>
-        <p style={{ margin: '0 0 16px', fontSize: 13.5, color: p.textMuted, lineHeight: 1.45 }}>
+        <p
+          style={{
+            margin: '0 0 16px',
+            fontSize: 13.5,
+            color: p.textMuted,
+            lineHeight: 1.45,
+          }}
+        >
           Pick who you are on this device — new items you add are tagged with your
           avatar so everyone sees who added what.
         </p>

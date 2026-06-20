@@ -198,9 +198,7 @@ describe('plan operations', () => {
 });
 
 describe('recipeFromDraft', () => {
-  const catalog = [
-    { name: 'Apples', emoji: '🍎', category: 'Produce' as const },
-  ];
+  const catalog = [{ name: 'Apples', emoji: '🍎', category: 'Produce' as const }];
   it('parses ingredients and steps, resolving emoji from catalog', () => {
     const r = recipeFromDraft(
       {

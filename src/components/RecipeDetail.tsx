@@ -44,7 +44,9 @@ export function RecipeDetail() {
           justifyContent: 'center',
         }}
       >
-        <div style={{ position: 'absolute', top: 14, right: 14, display: 'flex', gap: 8 }}>
+        <div
+          style={{ position: 'absolute', top: 14, right: 14, display: 'flex', gap: 8 }}
+        >
           <button
             onClick={() => actions.openEdit(recipe.id)}
             aria-label="Edit recipe"
@@ -122,7 +124,14 @@ export function RecipeDetail() {
             >
               −
             </button>
-            <span style={{ fontWeight: 700, fontSize: 13, minWidth: 74, textAlign: 'center' }}>
+            <span
+              style={{
+                fontWeight: 700,
+                fontSize: 13,
+                minWidth: 74,
+                textAlign: 'center',
+              }}
+            >
               {sv} servings
             </span>
             <button

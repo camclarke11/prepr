@@ -12,7 +12,11 @@ body {
 
 body {
   background: var(--pr-bg, #f1efe9);
-  font-family: 'Hanken Grotesque', -apple-system, system-ui, sans-serif;
+  font-family:
+    'Hanken Grotesque',
+    -apple-system,
+    system-ui,
+    sans-serif;
   color: var(--pr-text, #1c1c1a);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;

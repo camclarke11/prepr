@@ -87,12 +87,7 @@ export const CATALOG: CatalogItem[] = [
   C('Laundry Detergent', '🧺', 'Household'),
 ];
 
-function listItem(
-  name: string,
-  qty: number,
-  by: string,
-  checked = false,
-): ListItem {
+function listItem(name: string, qty: number, by: string, checked = false): ListItem {
   const c = CATALOG.find((x) => x.name === name);
   return {
     key: idify(name),

@@ -4,8 +4,7 @@ import { useStore } from './state/store';
 
 /** Reactive media query hook. */
 export function useMediaQuery(query: string): boolean {
-  const get = () =>
-    typeof window !== 'undefined' && window.matchMedia(query).matches;
+  const get = () => typeof window !== 'undefined' && window.matchMedia(query).matches;
   const [matches, setMatches] = useState(get);
 
   useEffect(() => {

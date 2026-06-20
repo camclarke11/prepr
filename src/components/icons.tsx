@@ -172,11 +172,7 @@ export function ChevronIcon({
 }: IconProps & { dir?: 'left' | 'right' }) {
   return (
     <svg {...base(size)} strokeWidth={2}>
-      {dir === 'left' ? (
-        <path d="M15 6l-6 6 6 6" />
-      ) : (
-        <path d="M9 6l6 6-6 6" />
-      )}
+      {dir === 'left' ? <path d="M15 6l-6 6 6 6" /> : <path d="M9 6l6 6-6 6" />}
     </svg>
   );
 }

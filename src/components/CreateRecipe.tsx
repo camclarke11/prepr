@@ -86,7 +86,13 @@ export function CreateRecipe() {
             onChange={(e) => actions.draftSet('name', e.target.value)}
             placeholder="Recipe name"
             aria-label="Recipe name"
-            style={{ ...inputStyle, flex: 1, padding: '12px 14px', fontSize: 16, fontWeight: 600 }}
+            style={{
+              ...inputStyle,
+              flex: 1,
+              padding: '12px 14px',
+              fontSize: 16,
+              fontWeight: 600,
+            }}
           />
         </div>
 
@@ -99,7 +105,12 @@ export function CreateRecipe() {
               type="number"
               min={1}
               aria-label="Servings"
-              style={{ ...inputStyle, width: '100%', padding: '11px 13px', borderRadius: 11 }}
+              style={{
+                ...inputStyle,
+                width: '100%',
+                padding: '11px 13px',
+                borderRadius: 11,
+              }}
             />
           </div>
           <div style={{ flex: 2 }}>
@@ -109,13 +120,22 @@ export function CreateRecipe() {
               onChange={(e) => actions.draftSet('time', e.target.value)}
               placeholder="e.g. 30 min"
               aria-label="Time"
-              style={{ ...inputStyle, width: '100%', padding: '11px 13px', borderRadius: 11 }}
+              style={{
+                ...inputStyle,
+                width: '100%',
+                padding: '11px 13px',
+                borderRadius: 11,
+              }}
             />
           </div>
         </div>
 
-        <h3 style={{ margin: '0 0 11px', fontSize: 15, fontWeight: 800 }}>Ingredients</h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 11 }}>
+        <h3 style={{ margin: '0 0 11px', fontSize: 15, fontWeight: 800 }}>
+          Ingredients
+        </h3>
+        <div
+          style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 11 }}
+        >
           {draft.ingredients.map((ing, i) => (
             <div key={i} style={{ display: 'flex', gap: 7, alignItems: 'center' }}>
               <input
@@ -123,21 +143,43 @@ export function CreateRecipe() {
                 onChange={(e) => actions.draftIng(i, 'qty', e.target.value)}
                 placeholder="1"
                 aria-label="Quantity"
-                style={{ ...inputStyle, width: 52, flex: 'none', padding: '10px 8px', borderRadius: 10, fontSize: 14, textAlign: 'center' }}
+                style={{
+                  ...inputStyle,
+                  width: 52,
+                  flex: 'none',
+                  padding: '10px 8px',
+                  borderRadius: 10,
+                  fontSize: 14,
+                  textAlign: 'center',
+                }}
               />
               <input
                 value={ing.unit}
                 onChange={(e) => actions.draftIng(i, 'unit', e.target.value)}
                 placeholder="unit"
                 aria-label="Unit"
-                style={{ ...inputStyle, width: 66, flex: 'none', padding: '10px 8px', borderRadius: 10, fontSize: 14, textAlign: 'center' }}
+                style={{
+                  ...inputStyle,
+                  width: 66,
+                  flex: 'none',
+                  padding: '10px 8px',
+                  borderRadius: 10,
+                  fontSize: 14,
+                  textAlign: 'center',
+                }}
               />
               <input
                 value={ing.name}
                 onChange={(e) => actions.draftIng(i, 'name', e.target.value)}
                 placeholder="ingredient"
                 aria-label="Ingredient name"
-                style={{ ...inputStyle, flex: 1, padding: '10px 12px', borderRadius: 10, fontSize: 14 }}
+                style={{
+                  ...inputStyle,
+                  flex: 1,
+                  padding: '10px 12px',
+                  borderRadius: 10,
+                  fontSize: 14,
+                }}
               />
               <button
                 onClick={() => actions.draftRemoveIng(i)}

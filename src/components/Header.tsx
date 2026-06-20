@@ -17,9 +17,13 @@ export function Header() {
   const [title, sub] = titles[tab];
 
   let action: { label: string; fn: () => void } | null = null;
-  if (tab === 'recipes') action = { label: '＋ New recipe', fn: actions.openCreate };
+  if (tab === 'recipes')
+    action = { label: mobile ? '＋ New' : '＋ New recipe', fn: actions.openCreate };
   else if (tab === 'plan')
-    action = { label: '＋ Add week to list', fn: actions.addWeek };
+    action = {
+      label: mobile ? '＋ Week' : '＋ Add week to list',
+      fn: actions.addWeek,
+    };
 
   return (
     <header
@@ -76,9 +80,7 @@ export function Header() {
               whiteSpace: 'nowrap',
             }}
           >
-            {mobile && action.label.startsWith('＋')
-              ? action.label.replace('＋ ', '＋')
-              : action.label}
+            {action.label}
           </button>
         )}
         <SettingsMenu />

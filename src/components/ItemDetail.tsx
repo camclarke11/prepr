@@ -82,7 +82,9 @@ export function ItemDetail() {
         >
           {item.name}
         </div>
-        <div style={{ fontSize: 13, color: p.textFaint, fontWeight: 600, marginTop: 3 }}>
+        <div
+          style={{ fontSize: 13, color: p.textFaint, fontWeight: 600, marginTop: 3 }}
+        >
           Added by {item.by || 'You'}
         </div>
 
@@ -114,7 +116,14 @@ export function ItemDetail() {
             >
               −
             </button>
-            <span style={{ fontWeight: 800, fontSize: 15, minWidth: 34, textAlign: 'center' }}>
+            <span
+              style={{
+                fontWeight: 800,
+                fontSize: 15,
+                minWidth: 34,
+                textAlign: 'center',
+              }}
+            >
               {fmtQty(item.qty)}
             </span>
             <button

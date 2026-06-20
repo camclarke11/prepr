@@ -15,9 +15,7 @@ describe('store', () => {
     act(() => result.current.actions.addMember('Alex'));
     act(() => result.current.actions.setActiveMember('Alex'));
     act(() => result.current.actions.addCatalog('apples'));
-    expect(result.current.state.list.find((x) => x.name === 'Apples')?.by).toBe(
-      'Alex',
-    );
+    expect(result.current.state.list.find((x) => x.name === 'Apples')?.by).toBe('Alex');
   });
 
   it('does not add duplicate members', () => {

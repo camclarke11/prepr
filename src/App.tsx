@@ -99,10 +99,7 @@ export function App() {
           el.tagName === 'SELECT' ||
           el.isContentEditable);
       const modalOpen =
-        state.openRecipe ||
-        state.createOpen ||
-        state.detailKey ||
-        state.membersOpen;
+        state.openRecipe || state.createOpen || state.detailKey || state.membersOpen;
       if (e.key === '/' && !typing) {
         const input = document.querySelector<HTMLInputElement>('[data-search-input]');
         if (input) {
@@ -122,13 +119,7 @@ export function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [
-    actions,
-    state.openRecipe,
-    state.createOpen,
-    state.detailKey,
-    state.membersOpen,
-  ]);
+  }, [actions, state.openRecipe, state.createOpen, state.detailKey, state.membersOpen]);
 
   return (
     <div

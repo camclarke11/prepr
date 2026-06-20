@@ -202,20 +202,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const actions = useMemo<Actions>(() => {
-    const showToast = (
-      msg: string,
-      opts: { undo?: boolean; dur?: number } = {},
-    ) => {
+    const showToast = (msg: string, opts: { undo?: boolean; dur?: number } = {}) => {
       const dur = opts.dur ?? 2;
       toastSeq.current += 1;
       dispatch({
         toast: { id: toastSeq.current, msg, undo: !!opts.undo, dur },
       });
       if (toastTimer.current) clearTimeout(toastTimer.current);
-      toastTimer.current = setTimeout(
-        () => dispatch({ toast: null }),
-        dur * 1000,
-      );
+      toastTimer.current = setTimeout(() => dispatch({ toast: null }), dur * 1000);
     };
 
     const flash = (id: string) => {
@@ -301,9 +295,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (!it) return;
         undoRef.current = null;
         dispatch((s) => ({
-          list: s.list.some((x) => x.key === it.key)
-            ? s.list
-            : [...s.list, it],
+          list: s.list.some((x) => x.key === it.key) ? s.list : [...s.list, it],
           toast: null,
         }));
         if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -321,10 +313,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         dispatch({ openRecipe: id, servings: r ? r.servings : 4 });
       },
       closeRecipe: () => dispatch({ openRecipe: null }),
-      incServings: () =>
-        dispatch((s) => ({ servings: Math.min(40, s.servings + 1) })),
-      decServings: () =>
-        dispatch((s) => ({ servings: Math.max(1, s.servings - 1) })),
+      incServings: () => dispatch((s) => ({ servings: Math.min(40, s.servings + 1) })),
+      decServings: () => dispatch((s) => ({ servings: Math.max(1, s.servings - 1) })),
 
       addRecipeToList: (recipe, servings) => {
         const { list, added, skipped } = ops.addRecipeToList(
@@ -353,10 +343,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         dispatch((s) => ({
           recipes: s.recipes.filter((x) => x.id !== id),
           plan: Object.fromEntries(
-            Object.entries(s.plan).map(([d, ids]) => [
-              d,
-              ids.filter((x) => x !== id),
-            ]),
+            Object.entries(s.plan).map(([d, ids]) => [d, ids.filter((x) => x !== id)]),
           ) as AppState['plan'],
           openRecipe: s.openRecipe === id ? null : s.openRecipe,
         }));
@@ -464,12 +451,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         });
       },
 
-      closeCreate: () => dispatch({ createOpen: false, draft: null, editingRecipeId: null }),
+      closeCreate: () =>
+        dispatch({ createOpen: false, draft: null, editingRecipeId: null }),
 
       draftSet: (field, value) =>
-        dispatch((s) =>
-          s.draft ? { draft: { ...s.draft, [field]: value } } : {},
-        ),
+        dispatch((s) => (s.draft ? { draft: { ...s.draft, [field]: value } } : {})),
       draftIng: (i, field, value) =>
         dispatch((s) =>
           s.draft
@@ -622,9 +608,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const url = buildShareUrl(persisted);
         const ok = () => showToast('Share link copied to clipboard', { dur: 3 });
         if (navigator.clipboard?.writeText) {
-          navigator.clipboard.writeText(url).then(ok, () =>
-            showToast('Could not copy the link'),
-          );
+          navigator.clipboard
+            .writeText(url)
+            .then(ok, () => showToast('Could not copy the link'));
         } else {
           showToast('Clipboard unavailable on this browser');
         }
@@ -650,7 +636,5 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(() => ({ state, actions }), [state, actions]);
 
-  return (
-    <StoreContext.Provider value={value}>{children}</StoreContext.Provider>
-  );
+  return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }

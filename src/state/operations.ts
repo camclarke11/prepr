@@ -1,10 +1,4 @@
-import type {
-  CategoryName,
-  Ingredient,
-  ListItem,
-  Plan,
-  Recipe,
-} from '../types';
+import type { CategoryName, Ingredient, ListItem, Plan, Recipe } from '../types';
 import { idify } from '../theme';
 
 export interface NewItemSpec {
@@ -56,11 +50,7 @@ export function mergeIntoList(list: ListItem[], spec: NewItemSpec): ListItem[] {
 }
 
 /** Change quantity by delta, removing the item when it reaches zero. */
-export function changeQty(
-  list: ListItem[],
-  key: string,
-  delta: number,
-): ListItem[] {
+export function changeQty(list: ListItem[], key: string, delta: number): ListItem[] {
   const i = list.findIndex((x) => x.key === key);
   if (i < 0) return list;
   const q = round2(list[i].qty + delta);
@@ -266,9 +256,7 @@ export function normalizeRecipe(input: unknown): Recipe {
 }
 
 export function togglePantry(pantry: string[], name: string): string[] {
-  return pantry.includes(name)
-    ? pantry.filter((x) => x !== name)
-    : [...pantry, name];
+  return pantry.includes(name) ? pantry.filter((x) => x !== name) : [...pantry, name];
 }
 
 export function assignMeal(plan: Plan, day: keyof Plan, id: string): Plan {

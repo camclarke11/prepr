@@ -2,11 +2,7 @@ import { useStore } from '../state/store';
 import { usePalette, useIsMobile } from '../hooks';
 import { CATEGORIES, categoryByName } from '../theme';
 import { CATALOG } from '../data/seed';
-import {
-  ActiveTile,
-  CatalogTile,
-  CategoryHeading,
-} from '../components/tiles';
+import { ActiveTile, CatalogTile, CategoryHeading } from '../components/tiles';
 import { SearchIcon } from '../components/icons';
 
 export function ShoppingListView() {
@@ -29,8 +25,7 @@ export function ShoppingListView() {
     return { cat, items };
   }).filter((g) => g.items.length > 0);
 
-  const showCustom =
-    q.length > 0 && !CATALOG.some((c) => c.name.toLowerCase() === q);
+  const showCustom = q.length > 0 && !CATALOG.some((c) => c.name.toLowerCase() === q);
 
   const recentItems = !q
     ? recents
@@ -62,7 +57,14 @@ export function ShoppingListView() {
             flexWrap: 'wrap',
           }}
         >
-          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, letterSpacing: '-0.01em' }}>
+          <h2
+            style={{
+              margin: 0,
+              fontSize: 16,
+              fontWeight: 800,
+              letterSpacing: '-0.01em',
+            }}
+          >
             Your list
           </h2>
           <span
@@ -148,7 +150,14 @@ export function ShoppingListView() {
         </h2>
 
         <div style={{ position: 'relative', marginBottom: 18 }}>
-          <span style={{ position: 'absolute', left: 15, top: '50%', transform: 'translateY(-50%)' }}>
+          <span
+            style={{
+              position: 'absolute',
+              left: 15,
+              top: '50%',
+              transform: 'translateY(-50%)',
+            }}
+          >
             <SearchIcon color={p.textFaint} />
           </span>
           <input
@@ -193,8 +202,8 @@ export function ShoppingListView() {
               cursor: 'pointer',
             }}
           >
-            <span style={{ fontSize: 20, lineHeight: 1 }}>＋</span> Add “
-            {search.trim()}” to list
+            <span style={{ fontSize: 20, lineHeight: 1 }}>＋</span> Add “{search.trim()}
+            ” to list
           </button>
         )}
 
