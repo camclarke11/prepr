@@ -108,7 +108,7 @@ export interface Actions {
   closeDetail: () => void;
   gotIt: (key: string) => void;
   undo: () => void;
-  clearChecked: () => void;
+  clearAll: () => void;
   openRecipe: (id: string) => void;
   closeRecipe: () => void;
   incServings: () => void;
@@ -164,7 +164,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   stateRef.current = state;
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const undoRef = useRef<ListItem | null>(null);
+  const undoRef = useRef<ListItem[] | null>(null);
   const toastSeq = useRef(0);
 
   // Persist the relevant slice whenever it changes.
@@ -284,7 +284,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       gotIt: (key) => {
         const it = stateRef.current.list.find((x) => x.key === key);
         if (!it) return;
-        undoRef.current = it;
+        undoRef.current = [it];
         dispatch((s) => ({
           list: ops.removeItem(s.list, key),
           detailKey: null,
@@ -293,21 +293,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       },
 
       undo: () => {
-        const it = undoRef.current;
-        if (!it) return;
+        const items = undoRef.current;
+        if (!items || !items.length) return;
         undoRef.current = null;
-        dispatch((s) => ({
-          list: s.list.some((x) => x.key === it.key) ? s.list : [...s.list, it],
-          toast: null,
-        }));
+        dispatch((s) => {
+          const present = new Set(s.list.map((x) => x.key));
+          const restored = items.filter((it) => !present.has(it.key));
+          return { list: [...s.list, ...restored], toast: null };
+        });
         if (toastTimer.current) clearTimeout(toastTimer.current);
       },
 
-      clearChecked: () => {
-        const n = stateRef.current.list.filter((x) => x.checked).length;
-        if (!n) return;
-        dispatch((s) => ({ list: s.list.filter((x) => !x.checked) }));
-        showToast(`Cleared ${n} item${n === 1 ? '' : 's'}`);
+      clearAll: () => {
+        const items = stateRef.current.list;
+        if (!items.length) return;
+        undoRef.current = items;
+        dispatch({ list: [] });
+        showToast(`Cleared ${items.length} item${items.length === 1 ? '' : 's'}`, {
+          undo: true,
+          dur: 6,
+        });
       },
 
       openRecipe: (id) => {

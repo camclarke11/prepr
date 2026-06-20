@@ -94,6 +94,23 @@ export function ShoppingListView() {
           >
             Tap a tile when it’s in your cart
           </span>
+          {list.length > 0 && (
+            <button
+              onClick={actions.clearAll}
+              style={{
+                border: `1px solid ${p.border}`,
+                background: p.card,
+                color: p.textMuted,
+                borderRadius: 9,
+                padding: '5px 10px',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              Clear
+            </button>
+          )}
         </div>
 
         {list.length === 0 && (

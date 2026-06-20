@@ -76,12 +76,20 @@ describe('store', () => {
     expect(result.current.state.theme).not.toBe(start);
   });
 
+  it('clears the whole list and restores it with undo', () => {
+    const { result } = setup();
+    const before = result.current.state.list.length;
+    expect(before).toBeGreaterThan(0);
+    act(() => result.current.actions.clearAll());
+    expect(result.current.state.list).toHaveLength(0);
+    act(() => result.current.actions.undo());
+    expect(result.current.state.list).toHaveLength(before);
+  });
+
   it('pastes parsed ingredients into a fresh draft, replacing blanks', () => {
     const { result } = setup();
     act(() => result.current.actions.openCreate());
-    act(() =>
-      result.current.actions.draftPasteIngredients('2 cups flour\n3 eggs'),
-    );
+    act(() => result.current.actions.draftPasteIngredients('2 cups flour\n3 eggs'));
     const ings = result.current.state.draft?.ingredients ?? [];
     expect(ings).toHaveLength(2);
     expect(ings[0]).toMatchObject({ name: 'flour', unit: 'cups', qty: '2' });
