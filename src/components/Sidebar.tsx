@@ -221,6 +221,31 @@ export function Sidebar() {
           {state.theme === 'dark' ? <SunIcon size={17} /> : <MoonIcon size={17} />}
           <span>{state.theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
         </button>
+
+        <div
+          style={{
+            marginTop: 10,
+            paddingLeft: 2,
+            fontSize: 11.5,
+            color: p.textFaint,
+            fontWeight: 600,
+          }}
+        >
+          Press{' '}
+          <kbd
+            style={{
+              fontFamily: 'inherit',
+              fontWeight: 800,
+              background: p.surfaceAlt,
+              border: `1px solid ${p.border}`,
+              borderRadius: 5,
+              padding: '0 5px',
+            }}
+          >
+            ?
+          </kbd>{' '}
+          for shortcuts
+        </div>
       </div>
     </aside>
   );

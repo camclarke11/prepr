@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useStore } from './state/store';
 import { usePalette, useIsMobile } from './hooks';
 import { Sidebar } from './components/Sidebar';
@@ -12,6 +12,8 @@ import { RecipeDetail } from './components/RecipeDetail';
 import { CreateRecipe } from './components/CreateRecipe';
 import { ItemDetail } from './components/ItemDetail';
 import { MembersModal } from './components/MembersModal';
+import { HelpOverlay } from './components/HelpOverlay';
+import { UpdateBanner } from './components/UpdateBanner';
 import { Toast } from './components/Toast';
 import { decodeShare, SHARE_PREFIX } from './lib/share';
 import type { Tab } from './types';
@@ -34,6 +36,7 @@ export function App() {
   const { state, actions } = useStore();
   const p = usePalette();
   const mobile = useIsMobile();
+  const [helpOpen, setHelpOpen] = useState(false);
 
   // Apply the palette as CSS custom properties + the browser theme colour.
   useEffect(() => {
@@ -88,7 +91,7 @@ export function App() {
     }
   }, [state.tab]);
 
-  // Keyboard shortcuts: 1–4 switch tabs, "/" focuses search.
+  // Keyboard shortcuts: 1–4 switch tabs, "/" focuses search, "?" shows help.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement | null;
@@ -99,13 +102,22 @@ export function App() {
           el.tagName === 'SELECT' ||
           el.isContentEditable);
       const modalOpen =
-        state.openRecipe || state.createOpen || state.detailKey || state.membersOpen;
-      if (e.key === '/' && !typing) {
+        state.openRecipe ||
+        state.createOpen ||
+        state.detailKey ||
+        state.membersOpen ||
+        helpOpen;
+      if (e.key === '/' && !typing && !modalOpen) {
         const input = document.querySelector<HTMLInputElement>('[data-search-input]');
         if (input) {
           e.preventDefault();
           input.focus();
         }
+        return;
+      }
+      if (e.key === '?' && !typing && !modalOpen) {
+        e.preventDefault();
+        setHelpOpen(true);
         return;
       }
       if (typing || modalOpen || e.metaKey || e.ctrlKey || e.altKey) return;
@@ -119,7 +131,14 @@ export function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [actions, state.openRecipe, state.createOpen, state.detailKey, state.membersOpen]);
+  }, [
+    actions,
+    state.openRecipe,
+    state.createOpen,
+    state.detailKey,
+    state.membersOpen,
+    helpOpen,
+  ]);
 
   return (
     <div
@@ -160,6 +179,8 @@ export function App() {
       {state.createOpen && <CreateRecipe />}
       {state.detailKey && <ItemDetail />}
       {state.membersOpen && <MembersModal />}
+      {helpOpen && <HelpOverlay onClose={() => setHelpOpen(false)} />}
+      <UpdateBanner />
       <Toast />
     </div>
   );

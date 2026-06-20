@@ -64,6 +64,13 @@ describe('App (integration)', () => {
     expect(screen.getByRole('button', { name: /Light mode/i })).toBeInTheDocument();
   });
 
+  it('opens the keyboard-shortcuts help with "?"', async () => {
+    const user = userEvent.setup();
+    renderApp();
+    await user.keyboard('?');
+    expect(await screen.findByText('Keyboard shortcuts')).toBeInTheDocument();
+  });
+
   it('edits an item and marks it got from the detail sheet', async () => {
     const user = userEvent.setup();
     renderApp();
