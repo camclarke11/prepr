@@ -63,6 +63,46 @@ describe('App (integration)', () => {
     await user.click(screen.getByRole('button', { name: /Dark mode/i }));
     expect(screen.getByRole('button', { name: /Light mode/i })).toBeInTheDocument();
   });
+
+  it('edits an item and marks it got from the detail sheet', async () => {
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(screen.getByRole('button', { name: 'Edit Milk' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.type(within(dialog).getByLabelText('Note'), 'organic');
+    await user.click(within(dialog).getByRole('button', { name: /Got it/i }));
+    expect(screen.queryByRole('button', { name: /Milk.*Mark as got/i })).toBeNull();
+  });
+
+  it('skips pantry staples when adding a recipe to the list', async () => {
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(screen.getByRole('button', { name: /^Recipes/i }));
+    await user.click(screen.getByText('Greek Salad'));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(
+      within(dialog).getByRole('button', { name: /Add ingredients to list/i }),
+    );
+    await user.click(screen.getByRole('button', { name: /Shopping list/i }));
+    // Cucumber is added; Olive Oil is in the pantry and is skipped.
+    expect(
+      await screen.findByRole('button', { name: /Cucumber.*Mark as got/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /Olive Oil.*Mark as got/i }),
+    ).toBeNull();
+  });
+
+  it('creates a recipe and shows it on the recipes tab', async () => {
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(screen.getByRole('button', { name: /^Recipes/i }));
+    await user.click(screen.getByRole('button', { name: /New recipe/i }));
+    const dialog = await screen.findByRole('dialog');
+    await user.type(within(dialog).getByLabelText('Recipe name'), 'My Test Soup');
+    await user.click(within(dialog).getByRole('button', { name: /Save recipe/i }));
+    expect(screen.getByText('My Test Soup')).toBeInTheDocument();
+  });
 });
 
 describe('App (mobile layout)', () => {
