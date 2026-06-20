@@ -20,6 +20,7 @@ import {
 import * as ops from './operations';
 import type { RecipeDraft } from './operations';
 import { buildShareUrl } from '../lib/share';
+import { parseIngredients } from '../lib/parseIngredients';
 
 const STORAGE_KEY = 'prepr.v2';
 
@@ -131,6 +132,7 @@ export interface Actions {
   draftIng: (i: number, field: 'name' | 'qty' | 'unit', value: string) => void;
   draftAddIng: () => void;
   draftRemoveIng: (i: number) => void;
+  draftPasteIngredients: (text: string) => void;
   saveRecipe: () => void;
   showToast: (msg: string, opts?: { undo?: boolean; dur?: number }) => void;
   exportData: () => void;
@@ -494,6 +496,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               }
             : {},
         ),
+      draftPasteIngredients: (text) => {
+        const parsed = parseIngredients(text);
+        if (!parsed.length) {
+          showToast('Nothing to add');
+          return;
+        }
+        dispatch((s) => {
+          if (!s.draft) return {};
+          // Drop the empty starter rows so a paste into a fresh draft replaces
+          // them rather than leaving blanks.
+          const existing = s.draft.ingredients.filter(
+            (x) => x.name.trim() || x.qty.trim() || x.unit.trim(),
+          );
+          return {
+            draft: { ...s.draft, ingredients: [...existing, ...parsed] },
+          };
+        });
+        showToast(`Added ${parsed.length} ingredient${parsed.length === 1 ? '' : 's'}`);
+      },
 
       saveRecipe: () => {
         const d = stateRef.current.draft;

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useStore } from '../state/store';
 import { usePalette } from '../hooks';
 import { Modal } from './Modal';
@@ -5,6 +6,8 @@ import { Modal } from './Modal';
 export function CreateRecipe() {
   const { state, actions } = useStore();
   const p = usePalette();
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteText, setPasteText] = useState('');
   const draft = state.draft;
   if (!draft) return null;
 
@@ -201,22 +204,82 @@ export function CreateRecipe() {
             </div>
           ))}
         </div>
-        <button
-          onClick={actions.draftAddIng}
-          style={{
-            padding: '9px 14px',
-            borderRadius: 10,
-            border: `1px dashed ${p.border}`,
-            background: p.surfaceSunk,
-            color: p.textMuted,
-            fontWeight: 700,
-            fontSize: 13.5,
-            cursor: 'pointer',
-            marginBottom: 22,
-          }}
-        >
-          ＋ Add ingredient
-        </button>
+        <div style={{ display: 'flex', gap: 8, marginBottom: pasteOpen ? 11 : 22 }}>
+          <button
+            onClick={actions.draftAddIng}
+            style={{
+              padding: '9px 14px',
+              borderRadius: 10,
+              border: `1px dashed ${p.border}`,
+              background: p.surfaceSunk,
+              color: p.textMuted,
+              fontWeight: 700,
+              fontSize: 13.5,
+              cursor: 'pointer',
+            }}
+          >
+            ＋ Add ingredient
+          </button>
+          <button
+            onClick={() => setPasteOpen((o) => !o)}
+            aria-expanded={pasteOpen}
+            style={{
+              padding: '9px 14px',
+              borderRadius: 10,
+              border: `1px dashed ${p.border}`,
+              background: p.surfaceSunk,
+              color: p.textMuted,
+              fontWeight: 700,
+              fontSize: 13.5,
+              cursor: 'pointer',
+            }}
+          >
+            📋 Paste a list
+          </button>
+        </div>
+        {pasteOpen && (
+          <div style={{ marginBottom: 22 }}>
+            <textarea
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              placeholder={
+                'Paste ingredients, one per line…\n2 cups flour\n1 tsp salt\n3 eggs'
+              }
+              aria-label="Paste ingredients"
+              style={{
+                ...inputStyle,
+                width: '100%',
+                minHeight: 96,
+                padding: '12px 14px',
+                fontSize: 14,
+                lineHeight: 1.5,
+                resize: 'vertical',
+                fontFamily: 'inherit',
+              }}
+            />
+            <button
+              onClick={() => {
+                actions.draftPasteIngredients(pasteText);
+                setPasteText('');
+                setPasteOpen(false);
+              }}
+              className="pr-press"
+              style={{
+                marginTop: 8,
+                padding: '9px 16px',
+                borderRadius: 10,
+                border: 'none',
+                background: p.accent,
+                color: '#fff',
+                fontWeight: 700,
+                fontSize: 13.5,
+                cursor: 'pointer',
+              }}
+            >
+              Add these
+            </button>
+          </div>
+        )}
 
         <h3 style={{ margin: '0 0 11px', fontSize: 15, fontWeight: 800 }}>Method</h3>
         <textarea

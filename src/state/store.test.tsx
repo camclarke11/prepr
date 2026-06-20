@@ -75,4 +75,16 @@ describe('store', () => {
     act(() => result.current.actions.toggleTheme());
     expect(result.current.state.theme).not.toBe(start);
   });
+
+  it('pastes parsed ingredients into a fresh draft, replacing blanks', () => {
+    const { result } = setup();
+    act(() => result.current.actions.openCreate());
+    act(() =>
+      result.current.actions.draftPasteIngredients('2 cups flour\n3 eggs'),
+    );
+    const ings = result.current.state.draft?.ingredients ?? [];
+    expect(ings).toHaveLength(2);
+    expect(ings[0]).toMatchObject({ name: 'flour', unit: 'cups', qty: '2' });
+    expect(ings[1]).toMatchObject({ name: 'eggs', qty: '3' });
+  });
 });
