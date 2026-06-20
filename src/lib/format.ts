@@ -28,3 +28,16 @@ export function fmtQtyUnit(q: number, unit?: string): string {
   const base = fmtQty(q);
   return unit ? `${base} ${unit}` : base;
 }
+
+interface QtyNamed {
+  name: string;
+  qty: number;
+  unit: string;
+}
+
+/** A plain-text bulleted ingredient list, scaled by `factor` — for clipboard. */
+export function ingredientLines(items: QtyNamed[], factor = 1): string {
+  return items
+    .map((i) => `• ${fmtQtyUnit(i.qty * factor, i.unit)} ${i.name}`.trim())
+    .join('\n');
+}

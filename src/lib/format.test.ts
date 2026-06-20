@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fmtQty, fmtQtyUnit } from './format';
+import { fmtQty, fmtQtyUnit, ingredientLines } from './format';
 
 describe('fmtQty', () => {
   it('keeps integers plain', () => {
@@ -25,5 +25,18 @@ describe('fmtQtyUnit', () => {
   });
   it('includes the unit', () => {
     expect(fmtQtyUnit(1.5, 'cup')).toBe('1½ cup');
+  });
+});
+
+describe('ingredientLines', () => {
+  it('builds a scaled bulleted list', () => {
+    const out = ingredientLines(
+      [
+        { name: 'Flour', qty: 2, unit: 'cups' },
+        { name: 'Eggs', qty: 3, unit: '' },
+      ],
+      2,
+    );
+    expect(out).toBe('• 4 cups Flour\n• 6 Eggs');
   });
 });

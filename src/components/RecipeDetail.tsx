@@ -1,7 +1,7 @@
 import { useStore } from '../state/store';
 import { usePalette } from '../hooks';
 import { categoryByName, DAYS } from '../theme';
-import { fmtQtyUnit } from '../lib/format';
+import { fmtQtyUnit, ingredientLines } from '../lib/format';
 import { Modal } from './Modal';
 import { EditIcon, TrashIcon } from './icons';
 
@@ -13,6 +13,21 @@ export function RecipeDetail() {
 
   const sv = state.servings;
   const factor = recipe.servings > 0 ? sv / recipe.servings : 1;
+
+  const copyIngredients = () => {
+    const text = `${recipe.name} — ${sv} servings\n${ingredientLines(
+      recipe.ingredients,
+      factor,
+    )}`;
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(
+        () => actions.showToast('Ingredients copied'),
+        () => actions.showToast('Could not copy'),
+      );
+    } else {
+      actions.showToast('Clipboard unavailable');
+    }
+  };
   const tint = categoryByName(
     recipe.ingredients[0] ? recipe.ingredients[0].category : 'Pantry',
   ).tint;
@@ -106,7 +121,27 @@ export function RecipeDetail() {
             margin: '22px 0 12px',
           }}
         >
-          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>Ingredients</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>Ingredients</h3>
+            <button
+              onClick={copyIngredients}
+              aria-label="Copy ingredients"
+              title="Copy ingredients"
+              className="pr-press"
+              style={{
+                border: `1px solid ${p.border}`,
+                background: p.card,
+                color: p.textMuted,
+                borderRadius: 8,
+                padding: '3px 9px',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              Copy
+            </button>
+          </div>
           <div
             style={{
               display: 'flex',
