@@ -12,6 +12,7 @@ import { RecipeDetail } from './components/RecipeDetail';
 import { CreateRecipe } from './components/CreateRecipe';
 import { ItemDetail } from './components/ItemDetail';
 import { Toast } from './components/Toast';
+import { decodeShare, SHARE_PREFIX } from './lib/share';
 import type { Tab } from './types';
 
 const TAB_HASH: Record<Tab, string> = {
@@ -46,6 +47,24 @@ export function App() {
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', state.theme === 'dark' ? p.bg : p.accent);
   }, [p, state.theme]);
+
+  // A shared "#data=" link offers to import someone else's data on first load.
+  useEffect(() => {
+    if (window.location.hash.startsWith(SHARE_PREFIX)) {
+      const payload = window.location.hash.slice(SHARE_PREFIX.length);
+      const data = decodeShare(payload);
+      history.replaceState(null, '', window.location.pathname);
+      if (
+        data &&
+        window.confirm(
+          'Open this shared prepr? It replaces your current list, recipes, plan and pantry on this device.',
+        )
+      ) {
+        actions.importData(data);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Keep the active tab in sync with the URL hash (deep links + back button).
   useEffect(() => {

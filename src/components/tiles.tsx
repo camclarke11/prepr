@@ -46,12 +46,15 @@ export function ActiveTile({ item, cat, p, onGot, onDetail }: ActiveTileProps) {
         }
       }}
     >
-      <div
+      <button
+        type="button"
         onClick={(e) => {
           e.stopPropagation();
           onDetail();
         }}
+        onKeyDown={(e) => e.stopPropagation()}
         title="Edit details"
+        aria-label={`Edit ${item.name}`}
         style={{
           position: 'absolute',
           top: 6,
@@ -72,7 +75,7 @@ export function ActiveTile({ item, cat, p, onGot, onDetail }: ActiveTileProps) {
         }}
       >
         {fmtQtyUnit(item.qty, item.unit)}
-      </div>
+      </button>
       <span style={{ fontSize: 27, lineHeight: 1 }}>{item.emoji}</span>
       <span
         style={{

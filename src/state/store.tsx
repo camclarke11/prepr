@@ -19,6 +19,7 @@ import {
 } from '../data/seed';
 import * as ops from './operations';
 import type { RecipeDraft } from './operations';
+import { buildShareUrl } from '../lib/share';
 
 const STORAGE_KEY = 'prepr.v2';
 
@@ -120,6 +121,7 @@ export interface Actions {
   showToast: (msg: string, opts?: { undo?: boolean; dur?: number }) => void;
   exportData: () => void;
   importData: (data: Partial<PersistedState>) => void;
+  shareLink: () => void;
   resetData: () => void;
 }
 
@@ -515,27 +517,56 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       },
 
       importData: (data) => {
+        const arr = <T,>(v: unknown, fallback: T[]): T[] =>
+          Array.isArray(v) ? (v as T[]) : fallback;
         dispatch((s) => ({
-          list: data.list ?? s.list,
-          recipes: data.recipes ?? s.recipes,
-          plan: data.plan ?? s.plan,
-          pantry: data.pantry ?? s.pantry,
-          recents: data.recents ?? s.recents,
-          members: data.members ?? s.members,
-          theme: data.theme ?? s.theme,
+          list: arr(data.list, s.list),
+          recipes: arr(data.recipes, s.recipes),
+          plan:
+            data.plan && typeof data.plan === 'object' && !Array.isArray(data.plan)
+              ? (data.plan as AppState['plan'])
+              : s.plan,
+          pantry: arr(data.pantry, s.pantry),
+          recents: arr(data.recents, s.recents),
+          members: arr(data.members, s.members),
+          theme: data.theme === 'dark' || data.theme === 'light' ? data.theme : s.theme,
+          openRecipe: null,
+          detailKey: null,
+          createOpen: false,
         }));
         showToast('Imported your data');
       },
 
+      shareLink: () => {
+        const s = stateRef.current;
+        const persisted: PersistedState = {
+          list: s.list,
+          recipes: s.recipes,
+          plan: s.plan,
+          pantry: s.pantry,
+          recents: s.recents,
+          members: s.members,
+          theme: s.theme,
+        };
+        const url = buildShareUrl(persisted);
+        const ok = () => showToast('Share link copied to clipboard', { dur: 3 });
+        if (navigator.clipboard?.writeText) {
+          navigator.clipboard.writeText(url).then(ok, () =>
+            showToast('Could not copy the link'),
+          );
+        } else {
+          showToast('Clipboard unavailable on this browser');
+        }
+      },
+
       resetData: () => {
-        const fresh = makeInitialState();
         dispatch({
           list: seedList(),
           recipes: SEED_RECIPES,
           plan: seedPlan(),
           pantry: SEED_PANTRY,
           recents: SEED_RECENTS,
-          members: fresh.members,
+          members: DEFAULT_MEMBERS,
           openRecipe: null,
           detailKey: null,
           createOpen: false,

@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { usePalette } from '../hooks';
+import { useInstallPrompt } from '../lib/pwa';
 import { DotsIcon, MoonIcon, SunIcon } from './icons';
 import type { PersistedState } from '../types';
 
 export function SettingsMenu() {
   const { state, actions } = useStore();
   const p = usePalette();
+  const { canInstall, promptInstall } = useInstallPrompt();
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -116,7 +118,14 @@ export function SettingsMenu() {
             actions.toggleTheme,
             state.theme === 'dark' ? <SunIcon size={17} /> : <MoonIcon size={17} />,
           )}
+          {canInstall && (
+            <>
+              <div style={{ height: 1, background: p.borderSoft, margin: '5px 0' }} />
+              {item('Install app', () => void promptInstall())}
+            </>
+          )}
           <div style={{ height: 1, background: p.borderSoft, margin: '5px 0' }} />
+          {item('Copy share link', actions.shareLink)}
           {item('Export data', actions.exportData)}
           {item('Import data', () => fileRef.current?.click())}
           <div style={{ height: 1, background: p.borderSoft, margin: '5px 0' }} />
