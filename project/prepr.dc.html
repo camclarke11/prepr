@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Hanken+Grotesque:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:#f1efe9;font-family:'Hanken Grotesque',-apple-system,system-ui,sans-serif;color:#1c1c1a;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+button{font-family:inherit}
+input,select,textarea{font-family:inherit}
+@keyframes prPop{0%{transform:scale(1)}40%{transform:scale(1.14)}100%{transform:scale(1)}}
+@keyframes prUp{from{transform:translateY(18px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes prIn{from{opacity:0}to{opacity:1}}
+@keyframes prToast{0%{transform:translateY(20px);opacity:0}12%{transform:translateY(0);opacity:1}88%{transform:translateY(0);opacity:1}100%{transform:translateY(20px);opacity:0}}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#d9d6cd;border-radius:8px}
+::-webkit-scrollbar-track{background:transparent}
+</style>
+</helmet>
+
+<div style="{{ rootStyle }}">
+
+  <sc-if value="{{ isDesktop }}" hint-placeholder-val="{{ true }}">
+    <aside style="width:248px;flex:none;height:100vh;position:sticky;top:0;background:#fbfaf7;border-right:1px solid #e7e3da;display:flex;flex-direction:column;padding:24px 16px">
+      <div style="display:flex;align-items:center;gap:10px;padding:6px 8px 22px 8px">
+        <div style="width:34px;height:34px;border-radius:10px;background:#3f7a4f;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:19px;font-family:'Bricolage Grotesque',sans-serif">p</div>
+        <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:23px;letter-spacing:-0.02em">prepr</div>
+      </div>
+      <nav style="display:flex;flex-direction:column;gap:4px">
+        <button onClick="{{ onList }}" style="{{ sideList }}"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h1.5"/><path d="M9 6h11"/><path d="M4 12h1.5"/><path d="M9 12h11"/><path d="M4 18h1.5"/><path d="M9 18h11"/></svg><span>Shopping list</span><span style="{{ listBadge }}">{{ listCount }}</span></button>
+        <button onClick="{{ onRecipes }}" style="{{ sideRecipes }}"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h10a2 2 0 0 1 2 2v14H8a2 2 0 0 1-2-2z"/><path d="M10 9h5"/><path d="M10 13h5"/></svg><span>Recipes</span></button>
+        <button onClick="{{ onPlan }}" style="{{ sidePlan }}"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 9h16"/><path d="M8 3v4"/><path d="M16 3v4"/></svg><span>Meal plan</span></button>
+        <button onClick="{{ onPantry }}" style="{{ sidePantry }}"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9h12v9a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2z"/><path d="M7 9l1.2-4h7.6L17 9"/></svg><span>Pantry</span></button>
+      </nav>
+      <div style="margin-top:auto;border-top:1px solid #e7e3da;padding-top:16px">
+        <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#9a988f;padding:0 8px 10px">Shared with</div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <sc-for list="{{ members }}" as="m" hint-placeholder-count="2">
+            <div style="display:flex;align-items:center;gap:10px;padding:6px 8px">
+              <div style="{{ m.avatar }}">{{ m.initial }}</div>
+              <span style="font-size:14px;font-weight:600">{{ m.name }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </aside>
+  </sc-if>
+
+  <main style="{{ mainStyle }}">
+    <header style="{{ headerStyle }}">
+      <div>
+        <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:{{ titleSize }};letter-spacing:-0.02em;line-height:1.05;white-space:nowrap">{{ tabTitle }}</div>
+        <div style="color:#7c7a72;font-size:14px;margin-top:3px">{{ tabSub }}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <sc-if value="{{ headerAction }}" hint-placeholder-val="{{ false }}">
+          <button onClick="{{ headerActionFn }}" style="display:flex;align-items:center;gap:7px;padding:11px 16px;border-radius:11px;border:none;background:#3f7a4f;color:#fff;font-weight:700;font-size:14px;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,0.08)">{{ headerActionLabel }}</button>
+        </sc-if>
+      </div>
+    </header>
+
+    <div style="{{ contentStyle }}">
+
+      <!-- ===== SHOPPING ===== -->
+      <sc-if value="{{ isList }}" hint-placeholder-val="{{ true }}">
+        <div style="{{ shopGridStyle }}">
+
+          <section>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+              <h2 style="margin:0;font-size:16px;font-weight:800;letter-spacing:-0.01em">Your list</h2>
+              <span style="min-width:22px;height:22px;padding:0 8px;border-radius:11px;background:#3f7a4f;color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center">{{ listCount }}</span>
+              <span style="margin-left:auto;font-size:12px;color:#b3b1a8;font-weight:600">Tap a tile when it’s in your cart</span>
+            </div>
+
+            <sc-if value="{{ listEmpty }}" hint-placeholder-val="{{ false }}">
+              <div style="border:1.5px dashed #d8d4ca;border-radius:16px;padding:40px 22px;text-align:center;color:#9a988f">
+                <div style="font-size:34px;margin-bottom:8px">🧺</div>
+                <div style="font-weight:700;color:#6f6d65;margin-bottom:3px">Your list is empty</div>
+                <div style="font-size:14px">Tap items below to add them.</div>
+              </div>
+            </sc-if>
+
+            <div style="display:flex;flex-direction:column;gap:18px">
+              <sc-for list="{{ listGroups }}" as="g" hint-placeholder-count="3">
+                <div>
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+                    <span style="{{ g.dot }}"></span>
+                    <span style="font-size:12px;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;color:#8a887f">{{ g.category }}</span>
+                  </div>
+                  <div style="display:flex;flex-wrap:wrap;gap:9px">
+                    <sc-for list="{{ g.items }}" as="it" hint-placeholder-count="3">
+                      <div onClick="{{ it.onGot }}" style="{{ it.tileStyle }}" style-hover="{{ it.tileHover }}">
+                        <div onClick="{{ it.onDetail }}" style="{{ it.qtyPill }}">{{ it.qtyLabel }}</div>
+                        <span style="font-size:27px;line-height:1">{{ it.emoji }}</span>
+                        <span style="font-size:12.5px;font-weight:700;color:#2f3a2c;text-align:center;line-height:1.12">{{ it.name }}</span>
+                        <span style="{{ it.specStyle }}">{{ it.spec }}</span>
+                        <div style="{{ it.avatar }}">{{ it.initial }}</div>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </section>
+
+          <section>
+            <h2 style="margin:0 0 14px;font-size:16px;font-weight:800;letter-spacing:-0.01em">Add items</h2>
+            <div style="position:relative;margin-bottom:18px">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9a988f" stroke-width="2" stroke-linecap="round" style="position:absolute;left:15px;top:50%;transform:translateY(-50%)"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+              <input value="{{ search }}" onChange="{{ onSearch }}" placeholder="Search or add an item…" style="width:100%;padding:13px 15px 13px 42px;border-radius:13px;border:1px solid #e2ded4;background:#fff;font-size:15px;outline:none;box-shadow:0 1px 2px rgba(0,0,0,0.03)" />
+            </div>
+            <sc-if value="{{ showCustom }}" hint-placeholder-val="{{ false }}">
+              <button onClick="{{ onAddCustom }}" style="display:flex;align-items:center;gap:10px;width:100%;padding:13px 15px;margin-bottom:16px;border-radius:13px;border:1.5px solid #3f7a4f;background:#eef3ec;color:#2f5d3a;font-weight:700;font-size:15px;cursor:pointer">
+                <span style="font-size:20px;line-height:1">＋</span> Add “{{ customLabel }}” to list
+              </button>
+            </sc-if>
+            <sc-if value="{{ hasRecents }}" hint-placeholder-val="{{ true }}">
+              <div style="margin-bottom:20px">
+                <div style="font-size:12px;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;color:#8a887f;margin-bottom:10px">Recently used</div>
+                <div style="display:flex;gap:9px;overflow-x:auto;padding:2px">
+                  <sc-for list="{{ recentItems }}" as="c" hint-placeholder-count="6">
+                    <button onClick="{{ c.onAdd }}" style="{{ c.tileStyle }}">
+                      <span style="{{ c.badge }}">{{ c.qty }}</span>
+                      <span style="font-size:25px;line-height:1">{{ c.emoji }}</span>
+                      <span style="font-size:12.5px;font-weight:600;color:#4a483f;text-align:center;line-height:1.15">{{ c.name }}</span>
+                    </button>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-if>
+            <div style="display:flex;flex-direction:column;gap:20px">
+              <sc-for list="{{ catalogGroups }}" as="g" hint-placeholder-count="4">
+                <div>
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+                    <span style="{{ g.dot }}"></span>
+                    <span style="font-size:12px;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;color:#8a887f">{{ g.category }}</span>
+                  </div>
+                  <div style="display:flex;flex-wrap:wrap;gap:9px">
+                    <sc-for list="{{ g.items }}" as="c" hint-placeholder-count="6">
+                      <button onClick="{{ c.onAdd }}" style="{{ c.tileStyle }}">
+                        <span style="{{ c.badge }}">{{ c.qty }}</span>
+                        <span style="font-size:25px;line-height:1">{{ c.emoji }}</span>
+                        <span style="font-size:12.5px;font-weight:600;color:#4a483f;text-align:center;line-height:1.15">{{ c.name }}</span>
+                      </button>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </section>
+
+        </div>
+      </sc-if>
+
+      <!-- ===== RECIPES ===== -->
+      <sc-if value="{{ isRecipes }}" hint-placeholder-val="{{ false }}">
+        <div style="{{ recipeGridStyle }}">
+          <sc-for list="{{ recipesView }}" as="r" hint-placeholder-count="5">
+            <div onClick="{{ r.onOpen }}" style="background:#fff;border:1px solid #ece9e1;border-radius:18px;overflow:hidden;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.04);display:flex;flex-direction:column">
+              <div style="{{ r.banner }}"><span style="font-size:50px">{{ r.emoji }}</span></div>
+              <div style="padding:14px 16px 16px">
+                <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:18px;letter-spacing:-0.01em;line-height:1.15">{{ r.name }}</div>
+                <div style="display:flex;gap:13px;margin-top:7px;color:#7c7a72;font-size:13px;font-weight:600">
+                  <span>⏱ {{ r.time }}</span><span>· {{ r.servings }} servings</span><span>· {{ r.ingCount }} items</span>
+                </div>
+                <button onClick="{{ r.onQuickAdd }}" style="margin-top:13px;width:100%;padding:9px;border-radius:10px;border:1px solid #d9e2d6;background:#eef3ec;color:#2f5d3a;font-weight:700;font-size:13.5px;cursor:pointer">＋ Add to list</button>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <!-- ===== MEAL PLAN ===== -->
+      <sc-if value="{{ isPlan }}" hint-placeholder-val="{{ false }}">
+        <div style="{{ planGridStyle }}">
+          <sc-for list="{{ planDays }}" as="d" hint-placeholder-count="7">
+            <div style="{{ d.cardStyle }}">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:11px">
+                <span style="font-weight:800;font-size:14px;letter-spacing:0.02em">{{ d.label }}</span>
+                <span style="{{ d.dateStyle }}">{{ d.date }}</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:7px;margin-bottom:10px;min-height:8px">
+                <sc-for list="{{ d.meals }}" as="m" hint-placeholder-count="1">
+                  <div style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #ece9e1;border-radius:10px;padding:7px 9px">
+                    <span style="font-size:17px">{{ m.emoji }}</span>
+                    <span onClick="{{ m.onOpen }}" style="flex:1;font-weight:600;font-size:13.5px;cursor:pointer;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ m.name }}</span>
+                    <button onClick="{{ m.onRemove }}" style="border:none;background:none;color:#bbb9b0;cursor:pointer;font-size:16px;line-height:1;padding:0 2px">×</button>
+                  </div>
+                </sc-for>
+              </div>
+              <select value="" onChange="{{ d.onAssign }}" style="width:100%;padding:8px 10px;border-radius:9px;border:1px dashed #cfcbc0;background:#faf9f5;color:#6f6d65;font-size:13px;font-weight:600;cursor:pointer;outline:none">
+                <option value="">＋ Add meal</option>
+                <sc-for list="{{ recipeOptions }}" as="o" hint-placeholder-count="5">
+                  <option value="{{ o.id }}">{{ o.name }}</option>
+                </sc-for>
+              </select>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <!-- ===== PANTRY ===== -->
+      <sc-if value="{{ isPantry }}" hint-placeholder-val="{{ false }}">
+        <div style="max-width:880px">
+          <div style="background:#eef3ec;border:1px solid #d9e2d6;border-radius:14px;padding:14px 16px;margin-bottom:22px;display:flex;align-items:center;gap:12px">
+            <span style="font-size:22px">🥫</span>
+            <div style="font-size:14px;color:#3a5a40;line-height:1.4"><b>{{ pantryCount }} staples on hand.</b> Items here are skipped when you add a recipe to your list.</div>
+          </div>
+          <div style="position:relative;margin-bottom:20px;max-width:420px">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9a988f" stroke-width="2" stroke-linecap="round" style="position:absolute;left:15px;top:50%;transform:translateY(-50%)"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+            <input value="{{ search }}" onChange="{{ onSearch }}" placeholder="Search your kitchen…" style="width:100%;padding:13px 15px 13px 42px;border-radius:13px;border:1px solid #e2ded4;background:#fff;font-size:15px;outline:none" />
+          </div>
+          <div style="display:flex;flex-direction:column;gap:20px">
+            <sc-for list="{{ pantryGroups }}" as="g" hint-placeholder-count="4">
+              <div>
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+                  <span style="{{ g.dot }}"></span>
+                  <span style="font-size:12px;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;color:#8a887f">{{ g.category }}</span>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:9px">
+                  <sc-for list="{{ g.items }}" as="c" hint-placeholder-count="6">
+                    <button onClick="{{ c.onToggle }}" style="{{ c.tileStyle }}">
+                      <span style="{{ c.badge }}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 6.5"/></svg></span>
+                      <span style="font-size:25px;line-height:1">{{ c.emoji }}</span>
+                      <span style="font-size:12.5px;font-weight:600;color:#4a483f;text-align:center;line-height:1.15">{{ c.name }}</span>
+                    </button>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+    </div>
+  </main>
+
+  <sc-if value="{{ isMobile }}" hint-placeholder-val="{{ false }}">
+    <nav style="position:fixed;bottom:0;left:0;right:0;height:66px;background:#fbfaf7;border-top:1px solid #e7e3da;display:flex;padding:6px 6px calc(6px + env(safe-area-inset-bottom));z-index:40">
+      <button onClick="{{ onList }}" style="{{ botList }}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h1.5"/><path d="M9 6h11"/><path d="M4 12h1.5"/><path d="M9 12h11"/><path d="M4 18h1.5"/><path d="M9 18h11"/></svg><span>List</span></button>
+      <button onClick="{{ onRecipes }}" style="{{ botRecipes }}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h10a2 2 0 0 1 2 2v14H8a2 2 0 0 1-2-2z"/><path d="M10 9h5"/><path d="M10 13h5"/></svg><span>Recipes</span></button>
+      <button onClick="{{ onPlan }}" style="{{ botPlan }}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 9h16"/><path d="M8 3v4"/><path d="M16 3v4"/></svg><span>Plan</span></button>
+      <button onClick="{{ onPantry }}" style="{{ botPantry }}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9h12v9a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2z"/><path d="M7 9l1.2-4h7.6L17 9"/></svg><span>Pantry</span></button>
+    </nav>
+  </sc-if>
+
+  <!-- ===== RECIPE DETAIL MODAL ===== -->
+  <sc-if value="{{ hasDetail }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ detail.onClose }}" style="position:fixed;inset:0;background:rgba(28,28,26,0.45);backdrop-filter:blur(3px);z-index:60;display:flex;align-items:flex-end;justify-content:center;animation:prIn .18s ease;{{ modalAlign }}">
+      <div onClick="{{ detail.stop }}" style="{{ modalCard }}">
+        <div style="{{ detail.banner }}">
+          <button onClick="{{ detail.onClose }}" style="position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:50%;border:none;background:rgba(255,255,255,0.8);font-size:20px;cursor:pointer;line-height:1;color:#3a382f">×</button>
+          <span style="font-size:62px">{{ detail.emoji }}</span>
+        </div>
+        <div style="padding:22px 24px 24px;overflow-y:auto">
+          <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:26px;letter-spacing:-0.02em;line-height:1.1">{{ detail.name }}</div>
+          <div style="display:flex;gap:14px;margin-top:8px;color:#7c7a72;font-size:14px;font-weight:600"><span>⏱ {{ detail.time }}</span></div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;margin:22px 0 12px">
+            <h3 style="margin:0;font-size:15px;font-weight:800">Ingredients</h3>
+            <div style="display:flex;align-items:center;gap:9px;background:#f4f2ec;border-radius:10px;padding:4px 5px">
+              <button onClick="{{ detail.onDec }}" style="width:28px;height:28px;border:none;background:#fff;border-radius:8px;font-size:18px;cursor:pointer;box-shadow:0 1px 1px rgba(0,0,0,0.05)">−</button>
+              <span style="font-weight:700;font-size:13px;min-width:74px;text-align:center">{{ detail.servings }} servings</span>
+              <button onClick="{{ detail.onInc }}" style="width:28px;height:28px;border:none;background:#fff;border-radius:8px;font-size:17px;cursor:pointer;box-shadow:0 1px 1px rgba(0,0,0,0.05)">+</button>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:1px;border-radius:12px;overflow:hidden;border:1px solid #ece9e1">
+            <sc-for list="{{ detail.ingredients }}" as="ing" hint-placeholder-count="5">
+              <div style="{{ ing.rowStyle }}">
+                <span style="font-size:19px;width:26px;text-align:center">{{ ing.emoji }}</span>
+                <span style="flex:1;font-weight:600;font-size:14.5px">{{ ing.name }}</span>
+                <span style="{{ ing.tagStyle }}">{{ ing.tag }}</span>
+                <span style="font-weight:700;font-size:14px;color:#3a382f;min-width:62px;text-align:right">{{ ing.qtyLabel }}</span>
+              </div>
+            </sc-for>
+          </div>
+
+          <h3 style="margin:24px 0 12px;font-size:15px;font-weight:800">Method</h3>
+          <div style="display:flex;flex-direction:column;gap:13px">
+            <sc-for list="{{ detail.steps }}" as="s" hint-placeholder-count="4">
+              <div style="display:flex;gap:13px">
+                <div style="flex:none;width:25px;height:25px;border-radius:50%;background:#3f7a4f;color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center">{{ s.n }}</div>
+                <div style="font-size:14.5px;line-height:1.5;color:#3a382f;padding-top:1px">{{ s.text }}</div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="display:flex;gap:10px;margin-top:26px;flex-wrap:wrap">
+            <button onClick="{{ detail.onAddList }}" style="flex:1;min-width:170px;padding:14px;border-radius:13px;border:none;background:#3f7a4f;color:#fff;font-weight:800;font-size:15px;cursor:pointer;box-shadow:0 2px 6px rgba(63,122,79,0.28)">＋ Add ingredients to list</button>
+            <select value="" onChange="{{ detail.onPlan }}" style="flex:none;padding:0 14px;border-radius:13px;border:1px solid #d9d6cd;background:#faf9f5;font-weight:700;font-size:14px;color:#4a483f;cursor:pointer;outline:none">
+              <option value="">Plan a day…</option>
+              <sc-for list="{{ dayOptions }}" as="o" hint-placeholder-count="7">
+                <option value="{{ o.key }}">{{ o.label }}</option>
+              </sc-for>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ===== CREATE RECIPE MODAL ===== -->
+  <sc-if value="{{ createOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ onCloseCreate }}" style="position:fixed;inset:0;background:rgba(28,28,26,0.45);backdrop-filter:blur(3px);z-index:60;display:flex;align-items:flex-end;justify-content:center;animation:prIn .18s ease;{{ modalAlign }}">
+      <div onClick="{{ stopFn }}" style="{{ modalCard }}">
+        <div style="padding:22px 24px;border-bottom:1px solid #eceae2;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:2">
+          <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:21px;letter-spacing:-0.02em">New recipe</div>
+          <button onClick="{{ onCloseCreate }}" style="width:34px;height:34px;border-radius:50%;border:none;background:#f4f2ec;font-size:20px;cursor:pointer;line-height:1">×</button>
+        </div>
+        <div style="padding:22px 24px 24px;overflow-y:auto">
+          <div style="display:flex;gap:12px;margin-bottom:16px">
+            <input value="{{ draft.emoji }}" onChange="{{ onDraftEmoji }}" maxlength="2" style="width:62px;flex:none;text-align:center;font-size:26px;padding:10px;border-radius:12px;border:1px solid #e2ded4;background:#faf9f5;outline:none" />
+            <input value="{{ draft.name }}" onChange="{{ onDraftName }}" placeholder="Recipe name" style="flex:1;padding:12px 14px;border-radius:12px;border:1px solid #e2ded4;font-size:16px;font-weight:600;outline:none" />
+          </div>
+          <div style="display:flex;gap:12px;margin-bottom:22px">
+            <div style="flex:1">
+              <label style="font-size:12px;font-weight:700;color:#8a887f;display:block;margin-bottom:5px">Servings</label>
+              <input value="{{ draft.servings }}" onChange="{{ onDraftServings }}" type="number" min="1" style="width:100%;padding:11px 13px;border-radius:11px;border:1px solid #e2ded4;font-size:15px;outline:none" />
+            </div>
+            <div style="flex:2">
+              <label style="font-size:12px;font-weight:700;color:#8a887f;display:block;margin-bottom:5px">Time</label>
+              <input value="{{ draft.time }}" onChange="{{ onDraftTime }}" placeholder="e.g. 30 min" style="width:100%;padding:11px 13px;border-radius:11px;border:1px solid #e2ded4;font-size:15px;outline:none" />
+            </div>
+          </div>
+
+          <h3 style="margin:0 0 11px;font-size:15px;font-weight:800">Ingredients</h3>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:11px">
+            <sc-for list="{{ draftIngredients }}" as="ing" hint-placeholder-count="3">
+              <div style="display:flex;gap:7px;align-items:center">
+                <input value="{{ ing.qty }}" onChange="{{ ing.onQty }}" placeholder="1" style="width:52px;flex:none;padding:10px 8px;border-radius:10px;border:1px solid #e2ded4;font-size:14px;text-align:center;outline:none" />
+                <input value="{{ ing.unit }}" onChange="{{ ing.onUnit }}" placeholder="unit" style="width:66px;flex:none;padding:10px 8px;border-radius:10px;border:1px solid #e2ded4;font-size:14px;text-align:center;outline:none" />
+                <input value="{{ ing.name }}" onChange="{{ ing.onName }}" placeholder="ingredient" style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid #e2ded4;font-size:14px;outline:none" />
+                <button onClick="{{ ing.onRemove }}" style="width:34px;height:34px;flex:none;border:none;background:#f4f2ec;border-radius:10px;color:#a8a69d;font-size:18px;cursor:pointer">×</button>
+              </div>
+            </sc-for>
+          </div>
+          <button onClick="{{ onDraftAddIng }}" style="padding:9px 14px;border-radius:10px;border:1px dashed #cfcbc0;background:#faf9f5;color:#6f6d65;font-weight:700;font-size:13.5px;cursor:pointer;margin-bottom:22px">＋ Add ingredient</button>
+
+          <h3 style="margin:0 0 11px;font-size:15px;font-weight:800">Method</h3>
+          <textarea value="{{ draft.stepsText }}" onChange="{{ onDraftSteps }}" placeholder="One step per line…" style="width:100%;min-height:120px;padding:13px 15px;border-radius:12px;border:1px solid #e2ded4;font-size:14.5px;line-height:1.5;outline:none;resize:vertical;font-family:inherit"></textarea>
+
+          <div style="display:flex;gap:10px;margin-top:22px">
+            <button onClick="{{ onCloseCreate }}" style="flex:none;padding:14px 20px;border-radius:13px;border:1px solid #d9d6cd;background:#fff;font-weight:700;font-size:15px;cursor:pointer">Cancel</button>
+            <button onClick="{{ onSaveRecipe }}" style="flex:1;padding:14px;border-radius:13px;border:none;background:#3f7a4f;color:#fff;font-weight:800;font-size:15px;cursor:pointer">Save recipe</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ===== ITEM DETAIL SHEET ===== -->
+  <sc-if value="{{ hasItemDetail }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ itemDetail.onClose }}" style="position:fixed;inset:0;background:rgba(28,28,26,0.45);backdrop-filter:blur(3px);z-index:60;display:flex;align-items:flex-end;justify-content:center;animation:prIn .18s ease;{{ modalAlign }}">
+      <div onClick="{{ itemDetail.stop }}" style="{{ sheetCard }}">
+        <div style="{{ itemDetail.banner }}">
+          <span style="font-size:48px">{{ itemDetail.emoji }}</span>
+          <button onClick="{{ itemDetail.onClose }}" style="position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:50%;border:none;background:rgba(255,255,255,0.8);font-size:20px;cursor:pointer;line-height:1;color:#3a382f">×</button>
+        </div>
+        <div style="padding:20px 22px 24px">
+          <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:22px;letter-spacing:-0.01em">{{ itemDetail.name }}</div>
+          <div style="{{ itemDetail.byStyle }}">Added by {{ itemDetail.by }}</div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;margin:20px 0 11px">
+            <span style="font-size:13px;font-weight:800;color:#6f6d65">Quantity</span>
+            <div style="display:flex;align-items:center;gap:8px;background:#f4f2ec;border-radius:11px;padding:4px 5px">
+              <button onClick="{{ itemDetail.onDec }}" style="width:30px;height:30px;border:none;background:#fff;border-radius:9px;font-size:19px;cursor:pointer;box-shadow:0 1px 1px rgba(0,0,0,0.05)">−</button>
+              <span style="font-weight:800;font-size:15px;min-width:34px;text-align:center">{{ itemDetail.qtyLabel }}</span>
+              <button onClick="{{ itemDetail.onInc }}" style="width:30px;height:30px;border:none;background:#fff;border-radius:9px;font-size:18px;cursor:pointer;box-shadow:0 1px 1px rgba(0,0,0,0.05)">+</button>
+            </div>
+          </div>
+          <input value="{{ itemDetail.unit }}" onChange="{{ itemDetail.onUnit }}" placeholder="Unit — e.g. kg, pack, bunch" style="width:100%;padding:12px 14px;border-radius:11px;border:1px solid #e2ded4;font-size:14.5px;outline:none;margin-bottom:11px" />
+          <input value="{{ itemDetail.spec }}" onChange="{{ itemDetail.onSpec }}" placeholder="Note — e.g. organic, ripe, for tacos" style="width:100%;padding:12px 14px;border-radius:11px;border:1px solid #e2ded4;font-size:14.5px;outline:none" />
+
+          <button onClick="{{ itemDetail.onGot }}" style="margin-top:22px;width:100%;padding:14px;border-radius:13px;border:none;background:#3f7a4f;color:#fff;font-weight:800;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 6.5"/></svg>Got it — remove from list</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;bottom:{{ toastBottom }};left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:14px;background:#1c1c1a;color:#fff;padding:13px 18px;border-radius:13px;font-weight:600;font-size:14.5px;z-index:80;box-shadow:0 8px 24px rgba(0,0,0,0.25);animation:prToast {{ toastDur }} ease forwards;white-space:nowrap">
+      <span>{{ toast }}</span>
+      <sc-if value="{{ toastAction }}" hint-placeholder-val="{{ false }}">
+        <button onClick="{{ onToastAction }}" style="background:none;border:none;color:#9fd2a6;font-weight:800;cursor:pointer;font-size:14.5px;text-decoration:underline;text-underline-offset:3px;padding:0">Undo</button>
+      </sc-if>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  constructor(props){
+    super(props);
+    this.CATS = [
+      {name:'Produce', color:'#5d8a4a', tint:'#eef2e8'},
+      {name:'Bakery', color:'#b3823f', tint:'#f5efe3'},
+      {name:'Meat & Fish', color:'#b35e54', tint:'#f4e8e6'},
+      {name:'Dairy & Eggs', color:'#5577ad', tint:'#e9eef5'},
+      {name:'Pantry', color:'#c2933f', tint:'#f5efe0'},
+      {name:'Frozen', color:'#4f9aa6', tint:'#e6f1f2'},
+      {name:'Drinks', color:'#856aa8', tint:'#eee9f3'},
+      {name:'Snacks', color:'#c0795f', tint:'#f4ebe5'},
+      {name:'Household', color:'#84847b', tint:'#eeede9'}
+    ];
+    this.DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    this.MEMBERS = [
+      {name:'You', initial:'Y', color:'#3f7a4f'},
+      {name:'Sam', initial:'S', color:'#b35e54'}
+    ];
+    const seed = this.seed();
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem('prepr.v1')||'null'); } catch(e){}
+    this.state = {
+      tab:'list', search:'', isMobile:(typeof window!=='undefined' && window.innerWidth<900),
+      openRecipe:null, servings:4, createOpen:false, toast:null, detailKey:null,
+      flash:null,
+      catalog: seed.catalog,
+      list: (saved&&saved.list) || seed.list,
+      recipes: (saved&&saved.recipes) || seed.recipes,
+      plan: (saved&&saved.plan) || seed.plan,
+      pantry: (saved&&saved.pantry) || seed.pantry,
+      recents: (saved&&saved.recents) || seed.recents,
+      draft:null
+    };
+  }
+  componentDidMount(){ this._r=()=>this.setState({isMobile:window.innerWidth<900}); window.addEventListener('resize',this._r); }
+  componentWillUnmount(){ window.removeEventListener('resize',this._r); if(this._t)clearTimeout(this._t); }
+  componentDidUpdate(){ try{ localStorage.setItem('prepr.v1', JSON.stringify({list:this.state.list,recipes:this.state.recipes,plan:this.state.plan,pantry:this.state.pantry,recents:this.state.recents})); }catch(e){} }
+
+  idify(s){ return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,''); }
+  cat(name){ return this.CATS.find(c=>c.name===name) || this.CATS[this.CATS.length-1]; }
+  fmt(q){ q=Math.round(q*100)/100; if(Number.isInteger(q))return ''+q; const m={'0.25':'¼','0.5':'½','0.75':'¾','0.33':'⅓','0.67':'⅔'}; const w=Math.floor(q); const f=(Math.round((q-w)*100)/100).toString(); if(m[f])return (w?w:'')+m[f]; return ''+q; }
+  toast(msg,opts){ opts=opts||{}; const dur=opts.dur||2; this.setState({toast:{msg,action:opts.action||null,dur}}); if(this._t)clearTimeout(this._t); this._t=setTimeout(()=>this.setState({toast:null}),dur*1000); }
+
+  seed(){
+    const C = (name,emoji,category)=>({id:this.idify(name),name,emoji,category});
+    const catalog = [
+      C('Bananas','🍌','Produce'),C('Apples','🍎','Produce'),C('Avocado','🥑','Produce'),C('Tomatoes','🍅','Produce'),C('Yellow Onion','🧅','Produce'),C('Garlic','🧄','Produce'),C('Lettuce','🥬','Produce'),C('Carrots','🥕','Produce'),C('Bell Pepper','🫑','Produce'),C('Lemon','🍋','Produce'),C('Cucumber','🥒','Produce'),C('Broccoli','🥦','Produce'),C('Potatoes','🥔','Produce'),C('Mushrooms','🍄','Produce'),C('Strawberries','🍓','Produce'),C('Basil','🌿','Produce'),
+      C('Bread','🍞','Bakery'),C('Bagels','🥯','Bakery'),C('Tortillas','🫓','Bakery'),C('Croissants','🥐','Bakery'),
+      C('Chicken Breast','🍗','Meat & Fish'),C('Ground Beef','🥩','Meat & Fish'),C('Salmon','🐟','Meat & Fish'),C('Bacon','🥓','Meat & Fish'),
+      C('Milk','🥛','Dairy & Eggs'),C('Eggs','🥚','Dairy & Eggs'),C('Butter','🧈','Dairy & Eggs'),C('Cheese','🧀','Dairy & Eggs'),C('Greek Yogurt','🥣','Dairy & Eggs'),C('Feta','🧀','Dairy & Eggs'),
+      C('Pasta','🍝','Pantry'),C('Rice','🍚','Pantry'),C('Olive Oil','🫒','Pantry'),C('Canned Tomatoes','🥫','Pantry'),C('Black Beans','🫘','Pantry'),C('Oats','🌾','Pantry'),C('Honey','🍯','Pantry'),C('Peanut Butter','🥜','Pantry'),C('Coffee','☕','Pantry'),C('Salt','🧂','Pantry'),C('Cereal','🥣','Pantry'),
+      C('Frozen Peas','🫛','Frozen'),C('Ice Cream','🍨','Frozen'),C('Frozen Berries','🫐','Frozen'),
+      C('Orange Juice','🧃','Drinks'),C('Sparkling Water','🥤','Drinks'),C('Beer','🍺','Drinks'),C('Wine','🍷','Drinks'),
+      C('Tortilla Chips','🌽','Snacks'),C('Dark Chocolate','🍫','Snacks'),C('Crackers','🍘','Snacks'),C('Cookies','🍪','Snacks'),C('Almonds','🥜','Snacks'),
+      C('Paper Towels','🧻','Household'),C('Dish Soap','🧴','Household'),C('Trash Bags','🗑️','Household'),C('Sponges','🧽','Household')
+    ];
+    const li = (name,qty,by,checked)=>{ const c=catalog.find(x=>x.name===name); return {key:this.idify(name),name,emoji:c?c.emoji:'🛒',category:c?c.category:'Pantry',qty,unit:'',checked:!!checked,by:by||'You'}; };
+    const list = [ li('Milk',1,'Sam'), li('Bananas',1,'You'), li('Coffee',1,'You'), li('Bread',1,'You'), li('Eggs',1,'Sam',true) ];
+    const ing = (name,emoji,qty,unit,category)=>({name,emoji,qty,unit:unit||'',category});
+    const recipes = [
+      {id:'tacos',name:'Weeknight Tacos',emoji:'🌮',servings:4,time:'25 min',ingredients:[ing('Ground Beef','🥩',1,'lb','Meat & Fish'),ing('Tortillas','🫓',8,'','Bakery'),ing('Tomatoes','🍅',2,'','Produce'),ing('Lettuce','🥬',1,'head','Produce'),ing('Cheese','🧀',1,'cup','Dairy & Eggs'),ing('Yellow Onion','🧅',1,'','Produce'),ing('Avocado','🥑',2,'','Produce'),ing('Lime','🍈',1,'','Produce')],steps:['Brown the ground beef with chopped onion over medium-high heat, 6–8 min.','Season with salt, cumin and chili; add a splash of water and simmer 3 min.','Warm the tortillas in a dry pan.','Chop tomatoes and shred the lettuce.','Build tacos and top with cheese, avocado and a squeeze of lime.']},
+      {id:'oats',name:'Overnight Oats',emoji:'🥣',servings:2,time:'5 min + overnight',ingredients:[ing('Oats','🌾',1,'cup','Pantry'),ing('Milk','🥛',1,'cup','Dairy & Eggs'),ing('Greek Yogurt','🥣',0.5,'cup','Dairy & Eggs'),ing('Honey','🍯',2,'tbsp','Pantry'),ing('Strawberries','🍓',1,'cup','Produce'),ing('Peanut Butter','🥜',2,'tbsp','Pantry')],steps:['Combine oats, milk and yogurt in a jar.','Stir in honey and peanut butter.','Cover and refrigerate overnight.','Top with sliced strawberries before serving.']},
+      {id:'chicken',name:'Sheet-Pan Chicken',emoji:'🍗',servings:4,time:'40 min',ingredients:[ing('Chicken Breast','🍗',4,'','Meat & Fish'),ing('Potatoes','🥔',4,'','Produce'),ing('Broccoli','🥦',1,'head','Produce'),ing('Olive Oil','🫒',3,'tbsp','Pantry'),ing('Garlic','🧄',4,'clove','Produce'),ing('Lemon','🍋',1,'','Produce')],steps:['Heat oven to 220°C / 425°F.','Toss potatoes with olive oil, garlic, salt and pepper; roast 15 min.','Add chicken and broccoli to the pan; squeeze over the lemon.','Roast 20–25 min until the chicken is cooked through.']},
+      {id:'pesto',name:'Pesto Pasta',emoji:'🍝',servings:3,time:'20 min',ingredients:[ing('Pasta','🍝',12,'oz','Pantry'),ing('Cheese','🧀',0.5,'cup','Dairy & Eggs'),ing('Garlic','🧄',2,'clove','Produce'),ing('Olive Oil','🫒',2,'tbsp','Pantry'),ing('Basil','🌿',2,'cup','Produce'),ing('Tomatoes','🍅',2,'','Produce')],steps:['Boil pasta in well-salted water until al dente.','Blend basil, garlic, cheese and olive oil into a pesto.','Toss the drained pasta with the pesto.','Top with halved cherry tomatoes.']},
+      {id:'greek',name:'Greek Salad',emoji:'🥗',servings:4,time:'15 min',ingredients:[ing('Cucumber','🥒',1,'','Produce'),ing('Tomatoes','🍅',3,'','Produce'),ing('Yellow Onion','🧅',0.5,'','Produce'),ing('Feta','🧀',1,'cup','Dairy & Eggs'),ing('Olive Oil','🫒',3,'tbsp','Pantry'),ing('Lemon','🍋',1,'','Produce')],steps:['Chop cucumber, tomatoes and onion into chunks.','Add cubed feta.','Dress with olive oil, lemon, oregano, salt and pepper.','Toss gently and serve.']}
+    ];
+    const plan = {Mon:['chicken'],Tue:[],Wed:['tacos'],Thu:[],Fri:['pesto'],Sat:[],Sun:['greek']};
+    const pantry = ['Olive Oil','Salt','Garlic','Rice'];
+    const recents = ['avocado','milk','bananas','eggs','coffee','tomatoes','chicken-breast'];
+    return {catalog,list,recipes,plan,pantry,recents};
+  }
+
+  // ---- mutations ----
+  addByName(name,emoji,category,unit,qty){
+    unit=unit||''; qty=qty||1;
+    this.setState(s=>{ const list=s.list.slice(); const i=list.findIndex(x=>x.name===name && x.unit===unit);
+      if(i>=0) list[i]=Object.assign({},list[i],{qty:list[i].qty+qty,checked:false});
+      else list.push({key:this.idify(name)+(unit?'-'+unit:''),name,emoji,category,qty,unit,checked:false,by:'You'});
+      return {list}; });
+  }
+  addCatalog(c){ this.addByName(c.name,c.emoji,c.category,'',1); this.pushRecent(c.id); this.setState({flash:c.id}); setTimeout(()=>this.setState({flash:null}),550); }
+  pushRecent(id){ this.setState(s=>({recents:[id].concat(s.recents.filter(x=>x!==id)).slice(0,10)})); }
+  changeQty(key,d){ this.setState(s=>{ let list=s.list.slice(); const i=list.findIndex(x=>x.key===key); if(i<0)return{}; const q=list[i].qty+d; if(q<=0){ list=list.filter(x=>x.key!==key); } else { list[i]=Object.assign({},list[i],{qty:q}); } return {list}; }); }
+  toggleCheck(key){ this.setState(s=>{ const list=s.list.map(x=>x.key===key?Object.assign({},x,{checked:!x.checked}):x); return {list}; }); }
+  openDetail(key){ this.setState({detailKey:key}); }
+  closeDetail(){ this.setState({detailKey:null}); }
+  setItemField(key,field,val){ this.setState(s=>({list:s.list.map(x=>x.key===key?Object.assign({},x,{[field]:val}):x)})); }
+  gotIt(key){ const it=this.state.list.find(x=>x.key===key); if(!it)return; this._undo=it; this.setState(s=>({list:s.list.filter(x=>x.key!==key),detailKey:null})); this.toast('Got '+it.name,{action:()=>this.undoRemove(),dur:5}); }
+  undoRemove(){ const it=this._undo; if(!it)return; this._undo=null; this.setState(s=>(s.list.some(x=>x.key===it.key)?{list:s.list}:{list:s.list.concat([it])})); this.setState({toast:null}); if(this._t)clearTimeout(this._t); }
+  clearChecked(){ this.setState(s=>({list:s.list.filter(x=>!x.checked)})); }
+  addCustom(){ const q=this.state.search.trim(); if(!q)return; const c=this.state.catalog.find(x=>x.name.toLowerCase()===q.toLowerCase()); if(c)this.addCatalog(c); else this.addByName(q,'🛒','Pantry','',1); this.setState({search:''}); this.toast('Added “'+q+'”'); }
+
+  addRecipe(recipe,servings){
+    const factor=servings/recipe.servings; let added=0,skipped=0;
+    this.setState(s=>{ const list=s.list.slice();
+      recipe.ingredients.forEach(ing=>{ if(s.pantry.indexOf(ing.name)>=0){skipped++;return;}
+        const qty=Math.round(ing.qty*factor*100)/100; const i=list.findIndex(x=>x.name===ing.name && x.unit===ing.unit);
+        if(i>=0) list[i]=Object.assign({},list[i],{qty:list[i].qty+qty,checked:false});
+        else list.push({key:this.idify(ing.name)+(ing.unit?'-'+ing.unit:''),name:ing.name,emoji:ing.emoji,category:ing.category,qty,unit:ing.unit,checked:false,by:'You'});
+        added++; });
+      return {list}; });
+    this.toast('Added '+added+' items'+(skipped?' · '+skipped+' in pantry':''));
+  }
+  assign(day,id){ if(!id)return; this.setState(s=>{ const plan=Object.assign({},s.plan); plan[day]=(plan[day]||[]).concat([id]); return {plan}; }); const r=this.state.recipes.find(x=>x.id===id); this.toast((r?r.name:'Meal')+' → '+day); }
+  removeFromDay(day,idx){ this.setState(s=>{ const plan=Object.assign({},s.plan); plan[day]=(plan[day]||[]).filter((_,i)=>i!==idx); return {plan}; }); }
+  addWeek(){ const recipes=this.state.recipes; let names={}; this.DAYS.forEach(d=>(this.state.plan[d]||[]).forEach(id=>{const r=recipes.find(x=>x.id===id); if(r)r.ingredients.forEach(ing=>{ if(this.state.pantry.indexOf(ing.name)>=0)return; const k=ing.name+'|'+ing.unit; names[k]=(names[k]||{name:ing.name,emoji:ing.emoji,category:ing.category,unit:ing.unit,qty:0}); names[k].qty+=ing.qty; });})); const vals=Object.values(names); if(!vals.length){this.toast('No meals planned yet');return;} this.setState(s=>{ const list=s.list.slice(); vals.forEach(v=>{ const i=list.findIndex(x=>x.name===v.name&&x.unit===v.unit); if(i>=0)list[i]=Object.assign({},list[i],{qty:list[i].qty+v.qty,checked:false}); else list.push({key:this.idify(v.name)+(v.unit?'-'+v.unit:''),name:v.name,emoji:v.emoji,category:v.category,qty:Math.round(v.qty*100)/100,unit:v.unit,checked:false,by:'You'}); }); return {list}; }); this.toast('Added '+vals.length+' items from your week'); }
+  togglePantry(name){ this.setState(s=>({pantry: s.pantry.indexOf(name)>=0? s.pantry.filter(x=>x!==name): s.pantry.concat([name])})); }
+
+  // ---- create recipe ----
+  openCreate(){ this.setState({createOpen:true, draft:{emoji:'🍽️',name:'',servings:4,time:'',ingredients:[{name:'',qty:'',unit:''}],stepsText:''}}); }
+  closeCreate(){ this.setState({createOpen:false,draft:null}); }
+  draftSet(k,v){ this.setState(s=>({draft:Object.assign({},s.draft,{[k]:v})})); }
+  draftIng(i,k,v){ this.setState(s=>{ const ings=s.draft.ingredients.map((x,j)=>j===i?Object.assign({},x,{[k]:v}):x); return {draft:Object.assign({},s.draft,{ingredients:ings})}; }); }
+  draftAddIng(){ this.setState(s=>({draft:Object.assign({},s.draft,{ingredients:s.draft.ingredients.concat([{name:'',qty:'',unit:''}])})})); }
+  draftRemoveIng(i){ this.setState(s=>({draft:Object.assign({},s.draft,{ingredients:s.draft.ingredients.filter((_,j)=>j!==i)})})); }
+  saveRecipe(){ const d=this.state.draft; if(!d.name.trim()){this.toast('Give it a name first');return;}
+    const ings=d.ingredients.filter(x=>x.name.trim()).map(x=>{ const c=this.state.catalog.find(cc=>cc.name.toLowerCase()===x.name.trim().toLowerCase()) || this.state.catalog.find(cc=>x.name.trim().toLowerCase().indexOf(cc.name.toLowerCase())>=0); return {name:x.name.trim(),emoji:c?c.emoji:'🥘',qty:parseFloat(x.qty)||1,unit:(x.unit||'').trim(),category:c?c.category:'Pantry'}; });
+    const steps=d.stepsText.split('\n').map(x=>x.trim()).filter(Boolean);
+    const recipe={id:'r'+Date.now(),name:d.name.trim(),emoji:d.emoji||'🍽️',servings:parseInt(d.servings)||4,time:d.time.trim()||'—',ingredients:ings,steps:steps.length?steps:['Enjoy!']};
+    this.setState(s=>({recipes:s.recipes.concat([recipe]),createOpen:false,draft:null}));
+    this.toast('Saved “'+recipe.name+'”');
+  }
+
+  // ---- nav style helper ----
+  navStyle(active,mobile){
+    if(mobile){ return {flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3,border:'none',background:'none',cursor:'pointer',fontSize:10.5,fontWeight:700,color:active?'#3f7a4f':'#9a988f'}; }
+    return {display:'flex',alignItems:'center',gap:12,padding:'11px 12px',borderRadius:11,border:'none',background:active?'#eaf0e7':'transparent',color:active?'#2f5d3a':'#5a584f',fontWeight:active?800:600,fontSize:15,cursor:'pointer',width:'100%',textAlign:'left'};
+  }
+
+  renderVals(){
+    const S=this.state, mobile=S.isMobile, tab=S.tab;
+    const o={
+      isMobile:mobile, isDesktop:!mobile,
+      isList:tab==='list', isRecipes:tab==='recipes', isPlan:tab==='plan', isPantry:tab==='pantry',
+      search:S.search,
+      onSearch:(e)=>this.setState({search:e.target.value}),
+      onList:()=>this.setState({tab:'list',search:''}), onRecipes:()=>this.setState({tab:'recipes',search:''}),
+      onPlan:()=>this.setState({tab:'plan',search:''}), onPantry:()=>this.setState({tab:'pantry',search:''}),
+      stopFn:(e)=>e.stopPropagation()
+    };
+    // nav styles
+    o.sideList=this.navStyle(tab==='list',false); o.sideRecipes=this.navStyle(tab==='recipes',false); o.sidePlan=this.navStyle(tab==='plan',false); o.sidePantry=this.navStyle(tab==='pantry',false);
+    o.botList=this.navStyle(tab==='list',true); o.botRecipes=this.navStyle(tab==='recipes',true); o.botPlan=this.navStyle(tab==='plan',true); o.botPantry=this.navStyle(tab==='pantry',true);
+    const lc=S.list.length;
+    o.listCount=lc;
+    o.listBadge={marginLeft:'auto',minWidth:22,height:22,padding:'0 7px',borderRadius:11,background:tab==='list'?'#3f7a4f':'#dcd9cf',color:tab==='list'?'#fff':'#7c7a72',fontSize:12,fontWeight:800,display:lc?'flex':'none',alignItems:'center',justifyContent:'center'};
+    o.members=this.MEMBERS.map(m=>({name:m.name,initial:m.initial,avatar:{width:28,height:28,borderRadius:'50%',background:m.color,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:800,fontSize:12.5,flex:'none'}}));
+
+    // layout
+    o.rootStyle = mobile ? {display:'flex',flexDirection:'column',minHeight:'100vh'} : {display:'flex',minHeight:'100vh'};
+    o.mainStyle = {flex:1,minWidth:0,display:'flex',flexDirection:'column',paddingBottom:mobile?'82px':'0'};
+    o.headerStyle = {display:'flex',alignItems:'flex-end',justifyContent:'space-between',gap:16,padding:mobile?'20px 18px 14px':'30px 38px 18px',position:mobile?'static':'sticky',top:0,background:'rgba(241,239,233,0.86)',backdropFilter:'blur(8px)',zIndex:20,borderBottom:'1px solid rgba(0,0,0,0.04)'};
+    o.contentStyle = {padding:mobile?'14px 16px 30px':'24px 38px 48px',flex:1};
+    o.titleSize = mobile?'24px':'30px';
+    o.shopGridStyle = mobile?{display:'flex',flexDirection:'column',gap:28}:{display:'grid',gridTemplateColumns:'minmax(330px,1fr) 1.15fr',gap:40,alignItems:'start'};
+    o.recipeGridStyle = {display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax('+(mobile?'150px':'230px')+',1fr))',gap:mobile?14:20};
+    o.planGridStyle = {display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax('+(mobile?'150px':'180px')+',1fr))',gap:14};
+
+    const titles={list:['Shopping list',(lc?lc+' to get':'All done — nice')], recipes:['Recipes',S.recipes.length+' saved'], plan:['Meal plan','This week · Mon–Sun'], pantry:['Pantry',S.pantry.length+' staples on hand']};
+    o.tabTitle=titles[tab][0]; o.tabSub=titles[tab][1];
+    o.headerAction = tab==='recipes'||tab==='plan';
+    if(tab==='recipes'){ o.headerActionLabel='＋ New recipe'; o.headerActionFn=()=>this.openCreate(); }
+    else if(tab==='plan'){ o.headerActionLabel='＋ Add week to list'; o.headerActionFn=()=>this.addWeek(); }
+
+    // ---- shopping list groups ----
+    o.listEmpty = S.list.length===0;
+    o.listGroups = this.CATS.map(cat=>{ const items=S.list.filter(x=>x.category===cat.name); if(!items.length)return null;
+      return {category:cat.name, dot:{width:9,height:9,borderRadius:'50%',background:cat.color,flex:'none'},
+        items:items.map(it=>this.activeTile(it,cat))}; }).filter(Boolean);
+
+    // ---- catalog (add view) ----
+    const q=S.search.trim().toLowerCase();
+    const onListQty=(name)=>{ const e=S.list.find(x=>x.name===name); return e?e.qty:0; };
+    o.catalogGroups = this.CATS.map(cat=>{ let items=S.catalog.filter(c=>c.category===cat.name); if(q)items=items.filter(c=>c.name.toLowerCase().includes(q)); if(!items.length)return null;
+      return {category:cat.name, dot:{width:9,height:9,borderRadius:'50%',background:cat.color,flex:'none'},
+        items:items.map(c=>this.tile(c,cat,onListQty(c.name),S.flash===c.id))}; }).filter(Boolean);
+    o.showCustom = q.length>0 && !S.catalog.some(c=>c.name.toLowerCase()===q);
+    o.customLabel=S.search.trim(); o.onAddCustom=()=>this.addCustom();
+    o.hasRecents = !q && S.recents.length>0;
+    o.recentItems = S.recents.map(id=>S.catalog.find(c=>c.id===id)).filter(Boolean).map(c=>this.tile(c,this.cat(c.category),onListQty(c.name),S.flash===c.id));
+
+    // ---- recipes ----
+    o.recipesView = S.recipes.map(r=>({name:r.name,emoji:r.emoji,time:r.time,servings:r.servings,ingCount:r.ingredients.length,
+      banner:{height:96,background:this.cat(r.ingredients[0]?r.ingredients[0].category:'Pantry').tint,display:'flex',alignItems:'center',justifyContent:'center'},
+      onOpen:()=>this.setState({openRecipe:r.id,servings:r.servings}),
+      onQuickAdd:(e)=>{e.stopPropagation();this.addRecipe(r,r.servings);}}));
+    o.recipeOptions = S.recipes.map(r=>({id:r.id,name:r.name}));
+
+    // ---- meal plan ----
+    const today=new Date(); const dow=(today.getDay()+6)%7; const monday=new Date(today); monday.setDate(today.getDate()-dow);
+    o.planDays = this.DAYS.map((day,i)=>{ const dt=new Date(monday); dt.setDate(monday.getDate()+i); const isToday=dt.toDateString()===today.toDateString();
+      const meals=(S.plan[day]||[]).map((id,idx)=>{ const r=S.recipes.find(x=>x.id===id)||{name:'—',emoji:'🍽️'}; return {emoji:r.emoji,name:r.name,onRemove:(e)=>{e.stopPropagation();this.removeFromDay(day,idx);},onOpen:()=>this.setState({openRecipe:r.id,servings:r.servings||4})}; });
+      return {label:day,date:dt.getDate(),meals,onAssign:(e)=>this.assign(day,e.target.value),
+        cardStyle:{background:isToday?'#fbfaf7':'#f7f5ef',border:isToday?'2px solid #3f7a4f':'1px solid #e7e3da',borderRadius:15,padding:'13px 13px 14px'},
+        dateStyle:{fontSize:12,fontWeight:700,color:isToday?'#3f7a4f':'#a8a69d'}}; });
+
+    // ---- pantry ----
+    o.pantryCount=S.pantry.length;
+    o.pantryGroups = this.CATS.map(cat=>{ let items=S.catalog.filter(c=>c.category===cat.name); if(q)items=items.filter(c=>c.name.toLowerCase().includes(q)); if(!items.length)return null;
+      return {category:cat.name, dot:{width:9,height:9,borderRadius:'50%',background:cat.color,flex:'none'},
+        items:items.map(c=>this.pantryTile(c,cat,S.pantry.indexOf(c.name)>=0))}; }).filter(Boolean);
+
+    // ---- recipe detail modal ----
+    o.modalAlign = mobile?'':'align-items:center';
+    o.modalCard = {background:'#fff',width:mobile?'100%':'560px',maxWidth:'100%',maxHeight:mobile?'92vh':'90vh',borderRadius:mobile?'22px 22px 0 0':'22px',overflow:'hidden',display:'flex',flexDirection:'column',animation:'prUp .26s cubic-bezier(.2,.8,.2,1)',boxShadow:'0 -8px 40px rgba(0,0,0,0.18)'};
+    const open=S.recipes.find(r=>r.id===S.openRecipe);
+    o.hasDetail=!!open;
+    if(open){ const sv=S.servings, factor=sv/open.servings;
+      o.detail={ name:open.name, emoji:open.emoji, time:open.time, servings:sv,
+        banner:{position:'relative',height:140,background:this.cat(open.ingredients[0]?open.ingredients[0].category:'Pantry').tint,display:'flex',alignItems:'center',justifyContent:'center'},
+        ingredients:open.ingredients.map((ing,i)=>{ const have=S.pantry.indexOf(ing.name)>=0; return {emoji:ing.emoji,name:ing.name,
+          qtyLabel:ing.unit?this.fmt(ing.qty*factor)+' '+ing.unit:this.fmt(ing.qty*factor),
+          rowStyle:{display:'flex',alignItems:'center',gap:11,padding:'11px 13px',background:i%2?'#faf9f5':'#fff',opacity:have?0.6:1},
+          tag:have?'in pantry':'', tagStyle:{fontSize:11,fontWeight:700,color:'#5d8a4a',background:'#eef2e8',padding:have?'2px 7px':'0',borderRadius:6,display:have?'inline-block':'none'}}; }),
+        steps:open.steps.map((t,i)=>({n:i+1,text:t})),
+        onClose:()=>this.setState({openRecipe:null}), stop:(e)=>e.stopPropagation(),
+        onInc:()=>this.setState(s=>({servings:Math.min(20,s.servings+1)})), onDec:()=>this.setState(s=>({servings:Math.max(1,s.servings-1)})),
+        onAddList:()=>{this.addRecipe(open,sv);this.setState({openRecipe:null});},
+        onPlan:(e)=>{ if(e.target.value){ this.assign(e.target.value,open.id); this.setState({openRecipe:null}); } } };
+      o.dayOptions=this.DAYS.map(d=>({key:d,label:d}));
+    }
+
+    // ---- create modal ----
+    o.createOpen=S.createOpen; o.onCloseCreate=()=>this.closeCreate(); o.onSaveRecipe=()=>this.saveRecipe();
+    o.onDraftAddIng=()=>this.draftAddIng();
+    if(S.draft){ const d=S.draft; o.draft={emoji:d.emoji,name:d.name,servings:d.servings,time:d.time,stepsText:d.stepsText};
+      o.onDraftEmoji=(e)=>this.draftSet('emoji',e.target.value); o.onDraftName=(e)=>this.draftSet('name',e.target.value);
+      o.onDraftServings=(e)=>this.draftSet('servings',e.target.value); o.onDraftTime=(e)=>this.draftSet('time',e.target.value);
+      o.onDraftSteps=(e)=>this.draftSet('stepsText',e.target.value);
+      o.draftIngredients=d.ingredients.map((ing,i)=>({qty:ing.qty,unit:ing.unit,name:ing.name,onQty:(e)=>this.draftIng(i,'qty',e.target.value),onUnit:(e)=>this.draftIng(i,'unit',e.target.value),onName:(e)=>this.draftIng(i,'name',e.target.value),onRemove:()=>this.draftRemoveIng(i)}));
+    } else { o.draft={emoji:'',name:'',servings:'',time:'',stepsText:''}; o.draftIngredients=[]; }
+
+    // item detail sheet
+    o.sheetCard = {background:'#fff',width:mobile?'100%':'440px',maxWidth:'100%',maxHeight:mobile?'92vh':'88vh',borderRadius:mobile?'22px 22px 0 0':'22px',overflow:'hidden',display:'flex',flexDirection:'column',animation:'prUp .26s cubic-bezier(.2,.8,.2,1)',boxShadow:'0 -8px 40px rgba(0,0,0,0.18)'};
+    const di = S.detailKey && S.list.find(x=>x.key===S.detailKey);
+    o.hasItemDetail=!!di;
+    if(di){ const dcat=this.cat(di.category);
+      o.itemDetail={ emoji:di.emoji, name:di.name, qtyLabel:this.fmt(di.qty), unit:di.unit||'', spec:di.spec||'', by:di.by||'You',
+        banner:{position:'relative',height:120,background:dcat.tint,display:'flex',alignItems:'center',justifyContent:'center'},
+        byStyle:{fontSize:13,color:'#a8a69d',fontWeight:600,marginTop:3},
+        onClose:()=>this.closeDetail(), stop:(e)=>e.stopPropagation(),
+        onInc:()=>this.changeQty(di.key,1), onDec:()=>{ if(di.qty>1) this.changeQty(di.key,-1); },
+        onUnit:(e)=>this.setItemField(di.key,'unit',e.target.value), onSpec:(e)=>this.setItemField(di.key,'spec',e.target.value),
+        onGot:()=>this.gotIt(di.key) };
+    }
+    // toast
+    o.hasToast=!!S.toast; o.toast=S.toast?S.toast.msg:''; o.toastAction=!!(S.toast&&S.toast.action); o.onToastAction=()=>{ if(S.toast&&S.toast.action)S.toast.action(); }; o.toastDur=(S.toast?S.toast.dur:2)+'s'; o.toastBottom=mobile?'86px':'32px';
+    return o;
+  }
+
+  activeTile(it,cat){
+    const isSam = it.by && it.by!=='You';
+    return {emoji:it.emoji, name:it.name, spec:it.spec||'', initial:isSam?it.by[0]:'',
+      qtyLabel: it.unit ? this.fmt(it.qty)+' '+it.unit : this.fmt(it.qty),
+      onGot:()=>this.gotIt(it.key), onDetail:(e)=>{e.stopPropagation();this.openDetail(it.key);},
+      tileStyle:{position:'relative',width:96,minHeight:100,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:5,padding:'13px 6px 11px',borderRadius:15,border:'1px solid '+cat.color,background:'#fff',cursor:'pointer',boxShadow:'0 1px 2px rgba(0,0,0,0.04)',transition:'transform .12s, box-shadow .12s'},
+      tileHover:{transform:'translateY(-2px)',boxShadow:'0 7px 18px rgba(0,0,0,0.11)'},
+      qtyPill:{position:'absolute',top:6,right:6,minWidth:20,height:20,padding:'0 7px',borderRadius:10,background:cat.tint,color:cat.color,fontSize:11.5,fontWeight:800,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',border:'1px solid '+cat.color},
+      specStyle:{fontSize:10.5,color:'#a8a69d',fontWeight:600,textAlign:'center',lineHeight:1.1,maxWidth:'100%',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',display:(it.spec?'block':'none')},
+      avatar:{position:'absolute',bottom:6,left:6,width:17,height:17,borderRadius:'50%',background:'#b35e54',color:'#fff',fontSize:9.5,fontWeight:800,display:isSam?'flex':'none',alignItems:'center',justifyContent:'center'}};
+  }
+  tile(c,cat,qty,flash){
+    const on=qty>0;
+    return {emoji:c.emoji, name:c.name, qty:qty,
+      onAdd:()=>this.addCatalog(c),
+      tileStyle:{position:'relative',width:84,height:90,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:6,padding:'8px 4px',borderRadius:14,border:on?'1.5px solid '+cat.color:'1px solid #ece9e1',background:'#fff',cursor:'pointer',flexShrink:0,boxShadow:'0 1px 2px rgba(0,0,0,0.03)',animation:flash?'prPop .45s ease':'none',transition:'border-color .15s'},
+      badge:{position:'absolute',top:-7,right:-7,minWidth:22,height:22,padding:'0 6px',borderRadius:11,background:cat.color,color:'#fff',fontSize:12,fontWeight:800,display:on?'flex':'none',alignItems:'center',justifyContent:'center',boxShadow:'0 1px 3px rgba(0,0,0,0.18)'}};
+  }
+  pantryTile(c,cat,have){
+    return {emoji:c.emoji, name:c.name, onToggle:()=>this.togglePantry(c.name),
+      tileStyle:{position:'relative',width:84,height:90,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:6,padding:'8px 4px',borderRadius:14,border:have?'1.5px solid #3f7a4f':'1px solid #ece9e1',background:have?'#eef3ec':'#fff',cursor:'pointer',boxShadow:'0 1px 2px rgba(0,0,0,0.03)',opacity:have?1:0.96},
+      badge:{position:'absolute',top:-7,right:-7,width:22,height:22,borderRadius:11,background:'#3f7a4f',display:have?'flex':'none',alignItems:'center',justifyContent:'center',boxShadow:'0 1px 3px rgba(0,0,0,0.18)'}};
+  }
+}
+</script>
+</body>
+</html>

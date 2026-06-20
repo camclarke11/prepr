@@ -1,0 +1,150 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--pr-bg, #f1efe9);
+  font-family: 'Hanken Grotesque', -apple-system, system-ui, sans-serif;
+  color: var(--pr-text, #1c1c1a);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease;
+}
+
+button {
+  font-family: inherit;
+}
+
+input,
+select,
+textarea {
+  font-family: inherit;
+  color: inherit;
+}
+
+/* Respect the platform reduced-motion preference. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+@keyframes prPop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.14);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes prUp {
+  from {
+    transform: translateY(18px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+@keyframes prIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes prToast {
+  0% {
+    transform: translateX(-50%) translateY(20px);
+    opacity: 0;
+  }
+  12% {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+  88% {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-50%) translateY(20px);
+    opacity: 0;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--pr-scroll, #d9d6cd);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Tile hover lift — replaces the prototype's style-hover attribute. */
+.pr-tile {
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease,
+    border-color 0.15s ease;
+}
+@media (hover: hover) {
+  .pr-tile:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 7px 18px var(--pr-shadow-strong, rgba(0, 0, 0, 0.11));
+  }
+  .pr-press:hover {
+    filter: brightness(0.97);
+  }
+}
+.pr-tile:active {
+  transform: scale(0.97);
+}
+
+/* Accessible focus ring for keyboard users only. */
+:focus-visible {
+  outline: 2.5px solid var(--pr-accent, #3f7a4f);
+  outline-offset: 2px;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2.5px solid var(--pr-accent, #3f7a4f);
+  outline-offset: 1px;
+}
+
+.pr-hide-scroll {
+  scrollbar-width: none;
+}
+.pr-hide-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* placeholder colour follows the theme */
+::placeholder {
+  color: var(--pr-faint, #9a988f);
+  opacity: 1;
+}

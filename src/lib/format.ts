@@ -1,0 +1,30 @@
+/** Format a quantity, preferring nice unicode fractions for common values. */
+export function fmtQty(q: number): string {
+  q = Math.round(q * 100) / 100;
+  if (Number.isInteger(q)) return String(q);
+  const fractions: Record<string, string> = {
+    '0.25': '¼',
+    '0.5': '½',
+    '0.75': '¾',
+    '0.33': '⅓',
+    '0.67': '⅔',
+    '0.2': '⅕',
+    '0.4': '⅖',
+    '0.6': '⅗',
+    '0.8': '⅘',
+    '0.13': '⅛',
+    '0.38': '⅜',
+    '0.63': '⅝',
+    '0.88': '⅞',
+  };
+  const whole = Math.floor(q);
+  const frac = (Math.round((q - whole) * 100) / 100).toString();
+  if (fractions[frac]) return (whole ? whole : '') + fractions[frac];
+  return String(q);
+}
+
+/** A quantity with an optional unit, e.g. "1½ cup" or "3". */
+export function fmtQtyUnit(q: number, unit?: string): string {
+  const base = fmtQty(q);
+  return unit ? `${base} ${unit}` : base;
+}
