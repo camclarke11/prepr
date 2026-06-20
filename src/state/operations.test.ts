@@ -69,6 +69,23 @@ describe('mergeIntoList', () => {
     expect(out[0].qty).toBe(0.33);
   });
 
+  it('keeps non-Latin / emoji-only names as distinct rows', () => {
+    let list = mergeIntoList([], {
+      name: '牛奶',
+      emoji: '🥛',
+      category: 'Dairy & Eggs',
+      qty: 1,
+    });
+    list = mergeIntoList(list, {
+      name: '巧克力',
+      emoji: '🍫',
+      category: 'Snacks',
+      qty: 1,
+    });
+    expect(list).toHaveLength(2);
+    expect(new Set(list.map((x) => x.key)).size).toBe(2);
+  });
+
   it('merges names that normalise to the same key (no duplicate keys)', () => {
     let list = mergeIntoList([], {
       name: 'Olive Oil',

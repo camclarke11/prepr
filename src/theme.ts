@@ -113,10 +113,19 @@ export const DARK: Palette = {
 
 /** Stable id from a display name. */
 export function idify(s: string): string {
-  return s
+  const slug = s
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '');
+  if (slug) return slug;
+  // Names with no ASCII alphanumerics (other scripts, emoji-only) would all
+  // slug to '' and collide — derive a stable token from their code points.
+  return (
+    'x' +
+    Array.from(s.trim())
+      .map((c) => (c.codePointAt(0) ?? 0).toString(36))
+      .join('')
+  );
 }
 
 export type { CategoryName };

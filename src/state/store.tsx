@@ -585,10 +585,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const arr = <T,>(v: unknown, fallback: T[]): T[] =>
           Array.isArray(v) ? (v as T[]) : fallback;
         dispatch((s) => {
-          const members =
-            Array.isArray(data.members) && data.members.length
-              ? data.members
-              : s.members;
+          // Keep only well-formed member entries; fall back to current members.
+          const cleanMembers = Array.isArray(data.members)
+            ? (data.members as unknown[]).filter(
+                (m): m is (typeof s.members)[number] =>
+                  !!m &&
+                  typeof m === 'object' &&
+                  typeof (m as { name?: unknown }).name === 'string' &&
+                  !!(m as { name: string }).name,
+              )
+            : [];
+          const members = cleanMembers.length ? cleanMembers : s.members;
           const activeMember =
             typeof data.activeMember === 'string' &&
             members.some((m) => m.name === data.activeMember)
