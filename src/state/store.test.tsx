@@ -95,4 +95,41 @@ describe('store', () => {
     expect(ings[0]).toMatchObject({ name: 'flour', unit: 'cups', qty: '2' });
     expect(ings[1]).toMatchObject({ name: 'eggs', qty: '3' });
   });
+
+  it('assigns and removes meals on the plan', () => {
+    const { result } = setup();
+    act(() => result.current.actions.assignMeal('Tue', 'tacos'));
+    expect(result.current.state.plan.Tue).toContain('tacos');
+    act(() => result.current.actions.removeMeal('Tue', 0));
+    expect(result.current.state.plan.Tue).not.toContain('tacos');
+  });
+
+  it('adds the planned week to the list, skipping pantry staples', () => {
+    const { result } = setup();
+    act(() => result.current.actions.addWeek());
+    const names = result.current.state.list.map((x) => x.name);
+    // Broccoli comes from the seeded Mon (Sheet-Pan Chicken) and isn't a staple.
+    expect(names).toContain('Broccoli');
+    // Garlic is in the seeded pantry, so it should be skipped.
+    expect(names).not.toContain('Garlic');
+  });
+
+  it('persists state changes to localStorage', () => {
+    const { result } = setup();
+    act(() => result.current.actions.addCatalog('apples'));
+    const saved = JSON.parse(localStorage.getItem('prepr.v2') || '{}');
+    expect(saved.list.some((x: { name: string }) => x.name === 'Apples')).toBe(true);
+  });
+
+  it('imports data with malformed members without crashing', () => {
+    const { result } = setup();
+    act(() =>
+      result.current.actions.importData({
+        members: [null, { name: 'Zed', initial: 'Z', color: '#000' }] as never,
+      }),
+    );
+    expect(result.current.state.members).toHaveLength(1);
+    expect(result.current.state.members[0].name).toBe('Zed');
+    expect(result.current.state.activeMember).toBe('Zed');
+  });
 });
