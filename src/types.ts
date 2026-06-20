@@ -84,5 +84,7 @@ export interface PersistedState {
   pantry: string[];
   recents: string[];
   members: Member[];
+  /** The member using this device — new items are attributed to them. */
+  activeMember: string;
   theme: ThemeMode;
 }

@@ -11,6 +11,7 @@ import { PantryView } from './views/Pantry';
 import { RecipeDetail } from './components/RecipeDetail';
 import { CreateRecipe } from './components/CreateRecipe';
 import { ItemDetail } from './components/ItemDetail';
+import { MembersModal } from './components/MembersModal';
 import { Toast } from './components/Toast';
 import { decodeShare, SHARE_PREFIX } from './lib/share';
 import type { Tab } from './types';
@@ -97,7 +98,10 @@ export function App() {
           el.tagName === 'SELECT' ||
           el.isContentEditable);
       const modalOpen =
-        state.openRecipe || state.createOpen || state.detailKey;
+        state.openRecipe ||
+        state.createOpen ||
+        state.detailKey ||
+        state.membersOpen;
       if (e.key === '/' && !typing) {
         const input = document.querySelector<HTMLInputElement>('[data-search-input]');
         if (input) {
@@ -117,7 +121,13 @@ export function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [actions, state.openRecipe, state.createOpen, state.detailKey]);
+  }, [
+    actions,
+    state.openRecipe,
+    state.createOpen,
+    state.detailKey,
+    state.membersOpen,
+  ]);
 
   return (
     <div
@@ -157,6 +167,7 @@ export function App() {
       {state.openRecipe && <RecipeDetail />}
       {state.createOpen && <CreateRecipe />}
       {state.detailKey && <ItemDetail />}
+      {state.membersOpen && <MembersModal />}
       <Toast />
     </div>
   );

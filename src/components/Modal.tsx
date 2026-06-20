@@ -16,16 +16,49 @@ export function Modal({ onClose, children, width = 560, labelledBy }: ModalProps
   const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    const restoreFocus = document.activeElement as HTMLElement | null;
+
+    const focusable = () =>
+      Array.from(
+        cardRef.current?.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      ).filter((el) => !el.hasAttribute('disabled'));
+
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      // Trap Tab focus inside the dialog.
+      if (e.key === 'Tab') {
+        const items = focusable();
+        if (items.length === 0) return;
+        const first = items[0];
+        const last = items[items.length - 1];
+        const active = document.activeElement;
+        if (e.shiftKey && (active === first || active === cardRef.current)) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && active === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     };
+
     document.addEventListener('keydown', onKey);
-    const prev = document.body.style.overflow;
+    const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     cardRef.current?.focus();
+
     return () => {
       document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = prev;
+      document.body.style.overflow = prevOverflow;
+      // Return focus to whatever opened the modal.
+      if (restoreFocus && typeof restoreFocus.focus === 'function') {
+        restoreFocus.focus();
+      }
     };
   }, [onClose]);
 

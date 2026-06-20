@@ -125,6 +125,7 @@ export function SettingsMenu() {
             </>
           )}
           <div style={{ height: 1, background: p.borderSoft, margin: '5px 0' }} />
+          {item('Shared with…', actions.openMembers)}
           {item('Copy share link', actions.shareLink)}
           {item('Export data', actions.exportData)}
           {item('Import data', () => fileRef.current?.click())}

@@ -8,13 +8,15 @@ interface ActiveTileProps {
   item: ListItem;
   cat: Category;
   p: Palette;
+  /** The current user — items added by anyone else show their avatar. */
+  me: string;
   onGot: () => void;
   onDetail: () => void;
 }
 
 /** A tile on the shopping list. Tap body = got it; tap qty pill = details. */
-export function ActiveTile({ item, cat, p, onGot, onDetail }: ActiveTileProps) {
-  const fromSomeoneElse = item.by && item.by !== 'You';
+export function ActiveTile({ item, cat, p, me, onGot, onDetail }: ActiveTileProps) {
+  const fromSomeoneElse = !!item.by && item.by !== me;
   const tileStyle: CSSProperties = {
     position: 'relative',
     width: 96,

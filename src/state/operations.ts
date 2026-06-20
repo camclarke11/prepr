@@ -102,6 +102,7 @@ export function addRecipeToList(
   recipe: Recipe,
   servings: number,
   pantry: string[],
+  by = 'You',
 ): RecipeAddResult {
   const factor = servings / recipe.servings;
   let added = 0;
@@ -118,6 +119,7 @@ export function addRecipeToList(
       category: ingredient.category,
       unit: ingredient.unit,
       qty: round2(ingredient.qty * factor),
+      by,
     });
     added++;
   }
@@ -135,6 +137,7 @@ export function addWeekToList(
   plan: Plan,
   recipes: Recipe[],
   pantry: string[],
+  by = 'You',
 ): WeekAddResult {
   const totals = new Map<string, NewItemSpec>();
   for (const ids of Object.values(plan)) {
@@ -161,7 +164,7 @@ export function addWeekToList(
   }
   let next = list;
   for (const spec of totals.values()) {
-    next = mergeIntoList(next, spec);
+    next = mergeIntoList(next, { ...spec, by });
   }
   return { list: next, count: totals.size };
 }

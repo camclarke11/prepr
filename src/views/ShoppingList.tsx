@@ -123,6 +123,7 @@ export function ShoppingListView() {
                     item={it}
                     cat={g.cat}
                     p={p}
+                    me={state.activeMember}
                     onGot={() => actions.gotIt(it.key)}
                     onDetail={() => actions.openDetail(it.key)}
                   />

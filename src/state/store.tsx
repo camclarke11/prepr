@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import type { ListItem, PersistedState, Recipe, Tab } from '../types';
-import { DEFAULT_MEMBERS } from '../theme';
+import { DEFAULT_MEMBERS, MEMBER_COLORS } from '../theme';
 import {
   CATALOG,
   SEED_PANTRY,
@@ -42,6 +42,7 @@ export interface AppState extends PersistedState {
   toast: ToastState | null;
   flash: string | null;
   recipeQuery: string;
+  membersOpen: boolean;
 }
 
 function loadPersisted(): Partial<PersistedState> {
@@ -68,12 +69,14 @@ function makeInitialState(): AppState {
     toast: null,
     flash: null,
     recipeQuery: '',
+    membersOpen: false,
     list: saved.list ?? seedList(),
     recipes: saved.recipes ?? SEED_RECIPES,
     plan: saved.plan ?? seedPlan(),
     pantry: saved.pantry ?? SEED_PANTRY,
     recents: saved.recents ?? SEED_RECENTS,
     members: saved.members ?? DEFAULT_MEMBERS,
+    activeMember: saved.activeMember ?? (saved.members?.[0]?.name ?? 'You'),
     theme: saved.theme ?? 'light',
   };
 }
@@ -110,6 +113,11 @@ export interface Actions {
   removeMeal: (day: string, index: number) => void;
   addWeek: () => void;
   togglePantry: (name: string) => void;
+  setActiveMember: (name: string) => void;
+  addMember: (name: string) => void;
+  removeMember: (name: string) => void;
+  openMembers: () => void;
+  closeMembers: () => void;
   openCreate: () => void;
   openEdit: (id: string) => void;
   closeCreate: () => void;
@@ -161,6 +169,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       pantry: state.pantry,
       recents: state.recents,
       members: state.members,
+      activeMember: state.activeMember,
       theme: state.theme,
     };
     try {
@@ -174,6 +183,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     state.plan,
     state.pantry,
     state.members,
+    state.activeMember,
     state.recents,
     state.theme,
   ]);
@@ -223,6 +233,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             name: c.name,
             emoji: c.emoji,
             category: c.category,
+            by: s.activeMember,
           }),
           recents: ops.pushRecent(s.recents, c.id),
         }));
@@ -239,6 +250,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               name: c.name,
               emoji: c.emoji,
               category: c.category,
+              by: s.activeMember,
             }),
             recents: ops.pushRecent(s.recents, c.id),
             search: '',
@@ -250,6 +262,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               name: q,
               emoji: '🛒',
               category: 'Pantry',
+              by: s.activeMember,
             }),
             search: '',
           }));
@@ -313,6 +326,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           recipe,
           servings,
           stateRef.current.pantry,
+          stateRef.current.activeMember,
         );
         dispatch({ list, openRecipe: null });
         showToast(
@@ -362,6 +376,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           stateRef.current.plan,
           stateRef.current.recipes,
           stateRef.current.pantry,
+          stateRef.current.activeMember,
         );
         if (!count) {
           showToast('No meals planned yet');
@@ -373,6 +388,37 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
       togglePantry: (name) =>
         dispatch((s) => ({ pantry: ops.togglePantry(s.pantry, name) })),
+
+      setActiveMember: (name) => dispatch({ activeMember: name }),
+
+      addMember: (name) => {
+        const nm = name.trim();
+        if (!nm) return;
+        dispatch((s) => {
+          if (s.members.some((m) => m.name.toLowerCase() === nm.toLowerCase())) {
+            return {};
+          }
+          const color = MEMBER_COLORS[s.members.length % MEMBER_COLORS.length];
+          return {
+            members: [
+              ...s.members,
+              { name: nm, initial: nm[0].toUpperCase(), color },
+            ],
+          };
+        });
+      },
+
+      removeMember: (name) =>
+        dispatch((s) => {
+          if (s.members.length <= 1) return {};
+          const members = s.members.filter((m) => m.name !== name);
+          const activeMember =
+            s.activeMember === name ? members[0].name : s.activeMember;
+          return { members, activeMember };
+        }),
+
+      openMembers: () => dispatch({ membersOpen: true }),
+      closeMembers: () => dispatch({ membersOpen: false }),
 
       openCreate: () =>
         dispatch({
@@ -498,6 +544,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           pantry: s.pantry,
           recents: s.recents,
           members: s.members,
+          activeMember: s.activeMember,
           theme: s.theme,
         };
         try {
@@ -529,6 +576,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           pantry: arr(data.pantry, s.pantry),
           recents: arr(data.recents, s.recents),
           members: arr(data.members, s.members),
+          activeMember:
+            typeof data.activeMember === 'string' ? data.activeMember : s.activeMember,
           theme: data.theme === 'dark' || data.theme === 'light' ? data.theme : s.theme,
           openRecipe: null,
           detailKey: null,
@@ -546,6 +595,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           pantry: s.pantry,
           recents: s.recents,
           members: s.members,
+          activeMember: s.activeMember,
           theme: s.theme,
         };
         const url = buildShareUrl(persisted);
@@ -567,6 +617,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           pantry: SEED_PANTRY,
           recents: SEED_RECENTS,
           members: DEFAULT_MEMBERS,
+          activeMember: DEFAULT_MEMBERS[0].name,
           openRecipe: null,
           detailKey: null,
           createOpen: false,

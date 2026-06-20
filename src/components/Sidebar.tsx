@@ -122,25 +122,54 @@ export function Sidebar() {
       >
         <div
           style={{
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            color: p.textFaint,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
             padding: '0 8px 10px',
           }}
         >
-          Shared with
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: p.textFaint,
+            }}
+          >
+            Shared with
+          </span>
+          <button
+            onClick={actions.openMembers}
+            style={{
+              border: 'none',
+              background: 'none',
+              color: p.accent,
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: 'pointer',
+              padding: 0,
+            }}
+          >
+            Manage
+          </button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {state.members.map((m) => (
-            <div
+            <button
               key={m.name}
+              onClick={actions.openMembers}
+              className="pr-press"
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: 10,
                 padding: '6px 8px',
+                border: 'none',
+                background: 'none',
+                cursor: 'pointer',
+                textAlign: 'left',
+                borderRadius: 8,
               }}
             >
               <div
@@ -160,8 +189,13 @@ export function Sidebar() {
               >
                 {m.initial}
               </div>
-              <span style={{ fontSize: 14, fontWeight: 600 }}>{m.name}</span>
-            </div>
+              <span style={{ fontSize: 14, fontWeight: 600, color: p.text }}>
+                {m.name}
+                {m.name === state.activeMember && (
+                  <span style={{ color: p.textFaint, fontWeight: 600 }}> · you</span>
+                )}
+              </span>
+            </button>
           ))}
         </div>
 
