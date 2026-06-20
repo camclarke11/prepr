@@ -9,6 +9,7 @@ import {
   removeMeal,
   assignMeal,
   togglePantry,
+  normalizeRecipe,
 } from './operations';
 import type { ListItem, Plan, Recipe } from '../types';
 
@@ -66,6 +67,24 @@ describe('mergeIntoList', () => {
   it('rounds fractional quantities to two decimals', () => {
     const out = mergeIntoList([], { ...apple, qty: 0.333333 });
     expect(out[0].qty).toBe(0.33);
+  });
+
+  it('merges names that normalise to the same key (no duplicate keys)', () => {
+    let list = mergeIntoList([], {
+      name: 'Olive Oil',
+      emoji: '🫒',
+      category: 'Pantry',
+      qty: 1,
+    });
+    list = mergeIntoList(list, {
+      name: 'Olive-Oil',
+      emoji: '🫒',
+      category: 'Pantry',
+      qty: 2,
+    });
+    expect(list).toHaveLength(1);
+    expect(list[0].qty).toBe(3);
+    expect(new Set(list.map((x) => x.key)).size).toBe(list.length);
   });
 });
 
@@ -223,6 +242,34 @@ describe('recipeFromDraft', () => {
     expect(r.servings).toBe(4);
     expect(r.time).toBe('—');
     expect(r.steps).toEqual(['Enjoy!']);
+  });
+});
+
+describe('normalizeRecipe', () => {
+  it('fills in safe defaults for a malformed recipe', () => {
+    const r = normalizeRecipe({ name: 'X', servings: 0 });
+    expect(r.servings).toBe(4);
+    expect(r.ingredients).toEqual([]);
+    expect(r.steps).toEqual([]);
+    expect(r.emoji).toBe('🍽️');
+    expect(typeof r.id).toBe('string');
+  });
+
+  it('drops junk ingredients and non-string steps', () => {
+    const r = normalizeRecipe({
+      name: 'Y',
+      servings: 2,
+      ingredients: [{ name: 'Eggs', qty: 2 }, { qty: 1 }, 'nope'],
+      steps: ['Crack', 42, '', 'Fry'],
+    });
+    expect(r.ingredients).toHaveLength(1);
+    expect(r.ingredients[0].name).toBe('Eggs');
+    expect(r.steps).toEqual(['Crack', 'Fry']);
+  });
+
+  it('survives null / non-object input', () => {
+    expect(normalizeRecipe(null).servings).toBe(4);
+    expect(normalizeRecipe(undefined).ingredients).toEqual([]);
   });
 });
 

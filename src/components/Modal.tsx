@@ -5,8 +5,6 @@ interface ModalProps {
   onClose: () => void;
   children: ReactNode;
   width?: number;
-  /** Render children with no padding/background (caller styles the card body). */
-  bare?: boolean;
   labelledBy?: string;
 }
 

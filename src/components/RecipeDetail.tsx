@@ -12,7 +12,7 @@ export function RecipeDetail() {
   if (!recipe) return null;
 
   const sv = state.servings;
-  const factor = sv / recipe.servings;
+  const factor = recipe.servings > 0 ? sv / recipe.servings : 1;
   const tint = categoryByName(
     recipe.ingredients[0] ? recipe.ingredients[0].category : 'Pantry',
   ).tint;

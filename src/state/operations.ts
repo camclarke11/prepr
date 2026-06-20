@@ -32,13 +32,17 @@ export function listKey(name: string, unit: string): string {
 export function mergeIntoList(list: ListItem[], spec: NewItemSpec): ListItem[] {
   const unit = spec.unit ?? '';
   const qty = spec.qty ?? 1;
+  const key = listKey(spec.name, unit);
   const next = list.slice();
-  const i = next.findIndex((x) => x.name === spec.name && x.unit === unit);
+  // Merge on the stable key so names that normalise to the same id (e.g.
+  // "Olive Oil" vs "Olive-Oil", or stray double spaces) never produce two
+  // rows sharing a key — which would break per-key edit/remove.
+  const i = next.findIndex((x) => x.key === key);
   if (i >= 0) {
     next[i] = { ...next[i], qty: round2(next[i].qty + qty), checked: false };
   } else {
     next.push({
-      key: listKey(spec.name, unit),
+      key,
       name: spec.name,
       emoji: spec.emoji,
       category: spec.category,
@@ -213,6 +217,51 @@ export function recipeFromDraft(
     ingredients,
     steps: steps.length ? steps : ['Enjoy!'],
     custom: true,
+  };
+}
+
+function asRecord(v: unknown): Record<string, unknown> {
+  return v && typeof v === 'object' ? (v as Record<string, unknown>) : {};
+}
+
+function normalizeIngredient(input: unknown): Ingredient {
+  const i = asRecord(input);
+  return {
+    name: typeof i.name === 'string' ? i.name : '',
+    emoji: typeof i.emoji === 'string' && i.emoji ? i.emoji : '🥘',
+    qty: typeof i.qty === 'number' && Number.isFinite(i.qty) ? i.qty : 1,
+    unit: typeof i.unit === 'string' ? i.unit : '',
+    category: typeof i.category === 'string' ? (i.category as CategoryName) : 'Pantry',
+  };
+}
+
+/**
+ * Coerce an untrusted recipe-shaped value (imported file / share link) into a
+ * valid Recipe, so the UI never crashes on a missing array or a zero serving.
+ */
+export function normalizeRecipe(input: unknown): Recipe {
+  const r = asRecord(input);
+  const servings =
+    typeof r.servings === 'number' && Number.isFinite(r.servings) && r.servings > 0
+      ? Math.round(r.servings)
+      : 4;
+  return {
+    id:
+      typeof r.id === 'string' && r.id
+        ? r.id
+        : 'r' + Math.random().toString(36).slice(2),
+    name: typeof r.name === 'string' && r.name.trim() ? r.name : 'Untitled',
+    emoji: typeof r.emoji === 'string' && r.emoji ? r.emoji : '🍽️',
+    servings,
+    time: typeof r.time === 'string' && r.time ? r.time : '—',
+    ingredients: Array.isArray(r.ingredients)
+      ? r.ingredients.map(normalizeIngredient).filter((x) => x.name)
+      : [],
+    steps: Array.isArray(r.steps)
+      ? r.steps.filter((s): s is string => typeof s === 'string' && !!s.trim())
+      : [],
+    custom: r.custom === true ? true : undefined,
+    favorite: r.favorite === true ? true : undefined,
   };
 }
 

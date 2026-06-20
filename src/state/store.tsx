@@ -57,6 +57,12 @@ function loadPersisted(): Partial<PersistedState> {
 
 function makeInitialState(): AppState {
   const saved = loadPersisted();
+  const members =
+    saved.members && saved.members.length ? saved.members : DEFAULT_MEMBERS;
+  const activeMember =
+    saved.activeMember && members.some((m) => m.name === saved.activeMember)
+      ? saved.activeMember
+      : members[0].name;
   return {
     tab: 'list',
     search: '',
@@ -71,12 +77,12 @@ function makeInitialState(): AppState {
     recipeQuery: '',
     membersOpen: false,
     list: saved.list ?? seedList(),
-    recipes: saved.recipes ?? SEED_RECIPES,
+    recipes: saved.recipes ? saved.recipes.map(ops.normalizeRecipe) : SEED_RECIPES,
     plan: saved.plan ?? seedPlan(),
     pantry: saved.pantry ?? SEED_PANTRY,
     recents: saved.recents ?? SEED_RECENTS,
-    members: saved.members ?? DEFAULT_MEMBERS,
-    activeMember: saved.activeMember ?? (saved.members?.[0]?.name ?? 'You'),
+    members,
+    activeMember,
     theme: saved.theme ?? 'light',
   };
 }
@@ -399,11 +405,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             return {};
           }
           const color = MEMBER_COLORS[s.members.length % MEMBER_COLORS.length];
+          // Use the first code point (not UTF-16 unit) so emoji names don't
+          // produce a broken half-character initial.
+          const initial = [...nm][0].toUpperCase();
           return {
-            members: [
-              ...s.members,
-              { name: nm, initial: nm[0].toUpperCase(), color },
-            ],
+            members: [...s.members, { name: nm, initial, color }],
           };
         });
       },
@@ -566,23 +572,38 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       importData: (data) => {
         const arr = <T,>(v: unknown, fallback: T[]): T[] =>
           Array.isArray(v) ? (v as T[]) : fallback;
-        dispatch((s) => ({
-          list: arr(data.list, s.list),
-          recipes: arr(data.recipes, s.recipes),
-          plan:
-            data.plan && typeof data.plan === 'object' && !Array.isArray(data.plan)
-              ? (data.plan as AppState['plan'])
-              : s.plan,
-          pantry: arr(data.pantry, s.pantry),
-          recents: arr(data.recents, s.recents),
-          members: arr(data.members, s.members),
-          activeMember:
-            typeof data.activeMember === 'string' ? data.activeMember : s.activeMember,
-          theme: data.theme === 'dark' || data.theme === 'light' ? data.theme : s.theme,
-          openRecipe: null,
-          detailKey: null,
-          createOpen: false,
-        }));
+        dispatch((s) => {
+          const members =
+            Array.isArray(data.members) && data.members.length
+              ? data.members
+              : s.members;
+          const activeMember =
+            typeof data.activeMember === 'string' &&
+            members.some((m) => m.name === data.activeMember)
+              ? data.activeMember
+              : members.some((m) => m.name === s.activeMember)
+                ? s.activeMember
+                : members[0].name;
+          return {
+            list: arr(data.list, s.list),
+            recipes: Array.isArray(data.recipes)
+              ? data.recipes.map(ops.normalizeRecipe)
+              : s.recipes,
+            plan:
+              data.plan && typeof data.plan === 'object' && !Array.isArray(data.plan)
+                ? (data.plan as AppState['plan'])
+                : s.plan,
+            pantry: arr(data.pantry, s.pantry),
+            recents: arr(data.recents, s.recents),
+            members,
+            activeMember,
+            theme:
+              data.theme === 'dark' || data.theme === 'light' ? data.theme : s.theme,
+            openRecipe: null,
+            detailKey: null,
+            createOpen: false,
+          };
+        });
         showToast('Imported your data');
       },
 

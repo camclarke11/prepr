@@ -83,7 +83,8 @@ export function App() {
   useEffect(() => {
     const want = TAB_HASH[state.tab];
     if (window.location.hash !== want) {
-      history.replaceState(null, '', want || window.location.pathname);
+      // pushState (not replace) so the Back button steps through visited tabs.
+      history.pushState(null, '', want || window.location.pathname);
     }
   }, [state.tab]);
 
