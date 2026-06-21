@@ -8,8 +8,12 @@ import {
   recipeFromDraft,
   removeMeal,
   assignMeal,
+  setItemField,
   togglePantry,
+  normalizeList,
+  normalizePlan,
   normalizeRecipe,
+  normalizeStringArray,
 } from './operations';
 import type { ListItem, Plan, Recipe } from '../types';
 
@@ -121,6 +125,35 @@ describe('changeQty', () => {
   });
 });
 
+describe('setItemField', () => {
+  it('updates a free-text field in place without touching the key', () => {
+    const out = setItemField(makeList(), 'apples', 'spec', 'organic');
+    expect(out[0].spec).toBe('organic');
+    expect(out[0].key).toBe('apples');
+  });
+
+  it('recomputes the key when the unit changes', () => {
+    const out = setItemField(makeList(), 'apples', 'unit', 'kg');
+    expect(out).toHaveLength(1);
+    expect(out[0].unit).toBe('kg');
+    expect(out[0].key).toBe('apples-kg');
+  });
+
+  it('merges into the existing row when a unit edit collides with another key', () => {
+    let list = makeList(); // apples (no unit), qty 2
+    list = mergeIntoList(list, { ...apple, qty: 1, unit: 'kg' }); // apples-kg, qty 1
+    const out = setItemField(list, 'apples', 'unit', 'kg');
+    expect(out).toHaveLength(1);
+    expect(out[0].key).toBe('apples-kg');
+    expect(out[0].qty).toBe(3);
+  });
+
+  it('ignores unknown keys', () => {
+    const list = makeList();
+    expect(setItemField(list, 'nope', 'spec', 'x')).toBe(list);
+  });
+});
+
 const recipe: Recipe = {
   id: 'r1',
   name: 'Test',
@@ -154,6 +187,19 @@ describe('addRecipeToList', () => {
     const { list } = addRecipeToList(makeList(), recipe, 2, []);
     expect(list.find((x) => x.name === 'Apples')!.qty).toBe(4);
   });
+
+  it('skips ingredients that scale down to zero', () => {
+    const tiny: Recipe = {
+      ...recipe,
+      servings: 1000,
+      ingredients: [
+        { name: 'Saffron', emoji: '🌸', qty: 1, unit: 'pinch', category: 'Pantry' },
+      ],
+    };
+    const { list, added } = addRecipeToList([], tiny, 1, []);
+    expect(added).toBe(0);
+    expect(list).toHaveLength(0);
+  });
 });
 
 describe('addWeekToList', () => {
@@ -185,6 +231,48 @@ describe('addWeekToList', () => {
       Sun: [],
     };
     expect(addWeekToList([], empty, recipes, []).count).toBe(0);
+  });
+
+  it('aggregates ingredients that normalise to one key as a single item', () => {
+    const twoRecipes: Recipe[] = [
+      {
+        id: 'a',
+        name: 'A',
+        emoji: '🍲',
+        servings: 1,
+        time: '',
+        steps: [],
+        ingredients: [
+          { name: 'Olive Oil', emoji: '🫒', qty: 1, unit: 'tbsp', category: 'Pantry' },
+        ],
+      },
+      {
+        id: 'b',
+        name: 'B',
+        emoji: '🍲',
+        servings: 1,
+        time: '',
+        steps: [],
+        ingredients: [
+          { name: 'Olive-Oil', emoji: '🫒', qty: 2, unit: 'tbsp', category: 'Pantry' },
+        ],
+      },
+    ];
+    const wk: Plan = {
+      Mon: ['a'],
+      Tue: ['b'],
+      Wed: [],
+      Thu: [],
+      Fri: [],
+      Sat: [],
+      Sun: [],
+    };
+    const { list, count } = addWeekToList([], wk, twoRecipes, []);
+    // The count must match what actually lands on the list (one merged row, qty 3),
+    // not the number of distinct display names.
+    expect(count).toBe(1);
+    expect(list).toHaveLength(1);
+    expect(list[0].qty).toBe(3);
   });
 });
 
@@ -292,5 +380,67 @@ describe('listKey', () => {
   it('builds keys with and without units', () => {
     expect(listKey('Greek Yogurt', '')).toBe('greek-yogurt');
     expect(listKey('Greek Yogurt', 'cup')).toBe('greek-yogurt-cup');
+  });
+});
+
+describe('normalizeStringArray', () => {
+  it('keeps only non-empty strings', () => {
+    expect(normalizeStringArray(['a', '', 2, null, 'b'])).toEqual(['a', 'b']);
+  });
+  it('returns [] for non-array input', () => {
+    expect(normalizeStringArray('x')).toEqual([]);
+    expect(normalizeStringArray(null)).toEqual([]);
+  });
+});
+
+describe('normalizeList', () => {
+  it('coerces a missing/garbage qty to a finite number (never NaN)', () => {
+    const out = normalizeList([
+      { name: 'Milk', unit: '', emoji: '🥛', category: 'Dairy & Eggs' },
+    ]);
+    expect(out).toHaveLength(1);
+    expect(Number.isFinite(out[0].qty)).toBe(true);
+    expect(out[0].qty).toBe(1);
+    expect(out[0].key).toBe('milk');
+  });
+
+  it('drops nameless/junk rows and merges duplicate keys', () => {
+    const out = normalizeList([
+      { name: 'Eggs', qty: 2, unit: '' },
+      { name: 'Eggs', qty: 3, unit: '' },
+      { qty: 5 },
+      'junk',
+    ]);
+    expect(out).toHaveLength(1);
+    expect(out[0].name).toBe('Eggs');
+    expect(out[0].qty).toBe(5);
+  });
+
+  it('returns [] for non-array input', () => {
+    expect(normalizeList(null)).toEqual([]);
+    expect(normalizeList({})).toEqual([]);
+  });
+});
+
+describe('normalizePlan', () => {
+  it('coerces non-array day values to empty arrays and filters non-strings', () => {
+    const out = normalizePlan({ Mon: ['a', 1, 'b'], Tue: 'nope', Wed: 42 });
+    expect(out.Mon).toEqual(['a', 'b']);
+    expect(out.Tue).toEqual([]);
+    expect(out.Wed).toEqual([]);
+  });
+
+  it('always returns every day of the week', () => {
+    const out = normalizePlan(null);
+    expect(Object.keys(out).sort()).toEqual([
+      'Fri',
+      'Mon',
+      'Sat',
+      'Sun',
+      'Thu',
+      'Tue',
+      'Wed',
+    ]);
+    expect(out.Mon).toEqual([]);
   });
 });

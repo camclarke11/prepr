@@ -132,4 +132,37 @@ describe('store', () => {
     expect(result.current.state.members[0].name).toBe('Zed');
     expect(result.current.state.activeMember).toBe('Zed');
   });
+
+  it('imports a malformed plan without crashing and normalises the days', () => {
+    const { result } = setup();
+    act(() =>
+      result.current.actions.importData({
+        plan: { Mon: 'tacos', Tue: ['greek', 5], Wed: 42 } as never,
+      }),
+    );
+    // Non-array / garbage day values become clean string arrays...
+    expect(result.current.state.plan.Mon).toEqual([]);
+    expect(result.current.state.plan.Tue).toEqual(['greek']);
+    expect(result.current.state.plan.Wed).toEqual([]);
+    // ...so addWeek, which iterates the plan, no longer throws.
+    expect(() => act(() => result.current.actions.addWeek())).not.toThrow();
+  });
+
+  it('imports list items with a missing qty without producing NaN', () => {
+    const { result } = setup();
+    act(() =>
+      result.current.actions.importData({
+        list: [
+          { name: 'Milk', unit: '', emoji: '🥛', category: 'Dairy & Eggs' },
+        ] as never,
+      }),
+    );
+    const milk = result.current.state.list.find((x) => x.name === 'Milk')!;
+    expect(Number.isFinite(milk.qty)).toBe(true);
+    // The corruption path: editing the qty must stay a finite number.
+    act(() => result.current.actions.changeQty(milk.key, 1));
+    const after = result.current.state.list.find((x) => x.name === 'Milk')!;
+    expect(Number.isFinite(after.qty)).toBe(true);
+    expect(after.qty).toBe(2);
+  });
 });

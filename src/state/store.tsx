@@ -77,11 +77,23 @@ function makeInitialState(): AppState {
     flash: null,
     recipeQuery: '',
     membersOpen: false,
-    list: saved.list ?? seedList(),
-    recipes: saved.recipes ? saved.recipes.map(ops.normalizeRecipe) : SEED_RECIPES,
-    plan: saved.plan ?? seedPlan(),
-    pantry: saved.pantry ?? SEED_PANTRY,
-    recents: saved.recents ?? SEED_RECENTS,
+    // Normalise the persisted slice on load too: a localStorage blob corrupted
+    // by an older schema or a bad import is just as untrusted as a share link.
+    // Array.isArray (not ??) so an intentionally-empty list/plan is preserved.
+    list: Array.isArray(saved.list) ? ops.normalizeList(saved.list) : seedList(),
+    recipes: Array.isArray(saved.recipes)
+      ? saved.recipes.map(ops.normalizeRecipe)
+      : SEED_RECIPES,
+    plan:
+      saved.plan && typeof saved.plan === 'object' && !Array.isArray(saved.plan)
+        ? ops.normalizePlan(saved.plan)
+        : seedPlan(),
+    pantry: Array.isArray(saved.pantry)
+      ? ops.normalizeStringArray(saved.pantry)
+      : SEED_PANTRY,
+    recents: Array.isArray(saved.recents)
+      ? ops.normalizeStringArray(saved.recents)
+      : SEED_RECENTS,
     members,
     activeMember,
     theme: saved.theme ?? 'light',
@@ -582,8 +594,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       },
 
       importData: (data) => {
-        const arr = <T,>(v: unknown, fallback: T[]): T[] =>
-          Array.isArray(v) ? (v as T[]) : fallback;
         dispatch((s) => {
           // Keep only well-formed member entries; fall back to current members.
           const cleanMembers = Array.isArray(data.members)
@@ -604,16 +614,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
                 ? s.activeMember
                 : members[0].name;
           return {
-            list: arr(data.list, s.list),
+            list: Array.isArray(data.list) ? ops.normalizeList(data.list) : s.list,
             recipes: Array.isArray(data.recipes)
               ? data.recipes.map(ops.normalizeRecipe)
               : s.recipes,
             plan:
               data.plan && typeof data.plan === 'object' && !Array.isArray(data.plan)
-                ? (data.plan as AppState['plan'])
+                ? ops.normalizePlan(data.plan)
                 : s.plan,
-            pantry: arr(data.pantry, s.pantry),
-            recents: arr(data.recents, s.recents),
+            pantry: Array.isArray(data.pantry)
+              ? ops.normalizeStringArray(data.pantry)
+              : s.pantry,
+            recents: Array.isArray(data.recents)
+              ? ops.normalizeStringArray(data.recents)
+              : s.recents,
             members,
             activeMember,
             theme:
