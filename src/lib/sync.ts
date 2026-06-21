@@ -119,6 +119,19 @@ export async function fetchVapidPublicKey(): Promise<string | null> {
   }
 }
 
+/** Preview a household by its invite id — validates the link and names the inviter. */
+export async function fetchHouseholdPreview(
+  id: string,
+): Promise<{ items: SyncItem[]; members: SyncMember[] } | null> {
+  try {
+    const res = await fetch(`${API_BASE}/api/household/${id}/state`);
+    if (!res.ok) return null;
+    return (await res.json()) as { items: SyncItem[]; members: SyncMember[] };
+  } catch {
+    return null;
+  }
+}
+
 /** Register a Web Push subscription with the household. */
 export async function sendSubscription(
   id: string,

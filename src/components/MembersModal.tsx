@@ -11,7 +11,7 @@ export function MembersModal() {
   const p = usePalette();
   const [name, setName] = useState('');
   const [yourName, setYourName] = useState(state.activeMember || '');
-  const [joinInput, setJoinInput] = useState(state.pendingJoin ?? '');
+  const [joinInput, setJoinInput] = useState('');
 
   const inHousehold = !!state.household;
 

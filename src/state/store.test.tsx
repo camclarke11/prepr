@@ -158,11 +158,14 @@ describe('store', () => {
     vi.unstubAllGlobals();
   });
 
-  it('a join link sets a pending join and opens the share modal', () => {
+  it('a join link sets a pending join (shown via the focused JoinPrompt)', () => {
     const { result } = setup();
     act(() => result.current.actions.requestJoin('HID'));
     expect(result.current.state.pendingJoin).toBe('HID');
-    expect(result.current.state.membersOpen).toBe(true);
+    // It no longer opens the full members modal — JoinPrompt handles invites.
+    expect(result.current.state.membersOpen).toBe(false);
+    act(() => result.current.actions.cancelJoin());
+    expect(result.current.state.pendingJoin).toBeNull();
   });
 
   it('leaving a household returns to solo mode', async () => {
