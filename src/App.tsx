@@ -13,6 +13,7 @@ import { CreateRecipe } from './components/CreateRecipe';
 import { ItemDetail } from './components/ItemDetail';
 import { MembersModal } from './components/MembersModal';
 import { JoinPrompt } from './components/JoinPrompt';
+import { Welcome } from './components/Welcome';
 import { HelpOverlay } from './components/HelpOverlay';
 import { UpdateBanner } from './components/UpdateBanner';
 import { Toast } from './components/Toast';
@@ -199,6 +200,7 @@ export function App() {
       {state.detailKey && <ItemDetail />}
       {state.membersOpen && <MembersModal />}
       {state.pendingJoin && <JoinPrompt />}
+      {state.welcomeOpen && <Welcome />}
       {helpOpen && <HelpOverlay onClose={() => setHelpOpen(false)} />}
       <UpdateBanner />
       <Toast />

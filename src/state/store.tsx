@@ -15,7 +15,7 @@ import type {
   Recipe,
   Tab,
 } from '../types';
-import { DEFAULT_MEMBERS, MEMBER_COLORS } from '../theme';
+import { DEFAULT_MEMBERS, MEMBER_COLORS, SAMPLE_MEMBERS } from '../theme';
 import {
   CATALOG,
   SEED_PANTRY,
@@ -31,10 +31,14 @@ import { parseIngredients } from '../lib/parseIngredients';
 import * as sync from '../lib/sync';
 import type { HouseholdRef, Op, ServerMsg, SyncItem, SyncMember } from '../lib/sync';
 
-const STORAGE_KEY = 'prepr.v2';
+// Bumped v2 -> v3 with the move to a clean (empty) first-run state, so existing
+// installs reset to the fresh experience too. Exported for the test fixture.
+export const STORAGE_KEY = 'prepr.v3';
 // The household ref holds the secret household id, so it lives in its own key —
 // never folded into the exported/shared PersistedState.
 const HOUSEHOLD_KEY = 'prepr.household';
+// Set once the first-run welcome has been dismissed.
+export const WELCOME_KEY = 'prepr.welcomed';
 
 function loadHousehold(): HouseholdRef | null {
   if (typeof localStorage === 'undefined') return null;
@@ -89,6 +93,8 @@ export interface AppState extends PersistedState {
   household: HouseholdRef | null;
   /** A household id pulled from a #join= link, awaiting confirmation. */
   pendingJoin: string | null;
+  /** First-run welcome/tutorial overlay. */
+  welcomeOpen: boolean;
 }
 
 function loadPersisted(): Partial<PersistedState> {
@@ -103,9 +109,21 @@ function loadPersisted(): Partial<PersistedState> {
 
 function makeInitialState(): AppState {
   const saved = loadPersisted();
-  const household = loadHousehold();
+  const freshInstall = Object.keys(saved).length === 0;
+  // On a brand-new (or version-bumped) install, drop any stale household pairing
+  // too, so existing testers start fully clean.
+  if (freshInstall && typeof localStorage !== 'undefined') {
+    try {
+      localStorage.removeItem(HOUSEHOLD_KEY);
+    } catch {
+      /* ignore */
+    }
+  }
+  const household = freshInstall ? null : loadHousehold();
   const members =
     saved.members && saved.members.length ? saved.members : DEFAULT_MEMBERS;
+  const welcomeOpen =
+    typeof localStorage !== 'undefined' && !localStorage.getItem(WELCOME_KEY);
   // In a household, this device IS the joined member; otherwise use the saved
   // local active member. Server state reconciles both on (re)connect.
   const activeMember = household
@@ -128,23 +146,20 @@ function makeInitialState(): AppState {
     membersOpen: false,
     household,
     pendingJoin: null,
-    // Normalise the persisted slice on load too: a localStorage blob corrupted
-    // by an older schema or a bad import is just as untrusted as a share link.
-    // Array.isArray (not ??) so an intentionally-empty list/plan is preserved.
-    list: Array.isArray(saved.list) ? ops.normalizeList(saved.list) : seedList(),
-    recipes: Array.isArray(saved.recipes)
-      ? saved.recipes.map(ops.normalizeRecipe)
-      : SEED_RECIPES,
+    welcomeOpen,
+    // A fresh install starts empty — a clean slate to build a real list on.
+    // Persisted data is normalised on load; Array.isArray (not ??) so an
+    // intentionally-empty list/plan is preserved.
+    list: Array.isArray(saved.list) ? ops.normalizeList(saved.list) : [],
+    recipes: Array.isArray(saved.recipes) ? saved.recipes.map(ops.normalizeRecipe) : [],
     plan:
       saved.plan && typeof saved.plan === 'object' && !Array.isArray(saved.plan)
         ? ops.normalizePlan(saved.plan)
-        : seedPlan(),
-    pantry: Array.isArray(saved.pantry)
-      ? ops.normalizeStringArray(saved.pantry)
-      : SEED_PANTRY,
+        : ops.normalizePlan({}),
+    pantry: Array.isArray(saved.pantry) ? ops.normalizeStringArray(saved.pantry) : [],
     recents: Array.isArray(saved.recents)
       ? ops.normalizeStringArray(saved.recents)
-      : SEED_RECENTS,
+      : [],
     members,
     activeMember,
     theme: saved.theme ?? 'light',
@@ -208,6 +223,8 @@ export interface Actions {
   leaveHousehold: () => void;
   requestJoin: (id: string) => void;
   cancelJoin: () => void;
+  dismissWelcome: () => void;
+  openWelcome: () => void;
 }
 
 interface StoreValue {
@@ -878,8 +895,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           plan: seedPlan(),
           pantry: SEED_PANTRY,
           recents: SEED_RECENTS,
-          members: DEFAULT_MEMBERS,
-          activeMember: DEFAULT_MEMBERS[0].name,
+          members: SAMPLE_MEMBERS,
+          activeMember: SAMPLE_MEMBERS[0].name,
           openRecipe: null,
           detailKey: null,
           createOpen: false,
@@ -947,6 +964,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
       requestJoin: (id) => dispatch({ pendingJoin: id }),
       cancelJoin: () => dispatch({ pendingJoin: null }),
+
+      dismissWelcome: () => {
+        try {
+          localStorage.setItem(WELCOME_KEY, '1');
+        } catch {
+          /* ignore */
+        }
+        dispatch({ welcomeOpen: false });
+      },
+      openWelcome: () => dispatch({ welcomeOpen: true }),
     };
   }, []);
 
