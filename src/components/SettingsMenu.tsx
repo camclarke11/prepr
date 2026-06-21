@@ -80,6 +80,7 @@ export function SettingsMenu() {
         aria-label="Settings"
         aria-haspopup="menu"
         aria-expanded={open}
+        data-tour="share"
         style={{
           width: 42,
           height: 42,

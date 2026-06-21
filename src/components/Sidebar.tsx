@@ -75,7 +75,7 @@ export function Sidebar() {
         </div>
       </div>
 
-      <nav style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <nav data-tour="nav" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         {items.map((it) => {
           const active = tab === it.key;
           const badge = it.key === 'list' && state.list.length > 0;
@@ -141,6 +141,7 @@ export function Sidebar() {
           </span>
           <button
             onClick={actions.openMembers}
+            data-tour="share"
             style={{
               border: 'none',
               background: 'none',

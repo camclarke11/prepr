@@ -17,6 +17,7 @@ export function MobileNav() {
 
   return (
     <nav
+      data-tour="nav"
       style={{
         position: 'fixed',
         bottom: 0,
