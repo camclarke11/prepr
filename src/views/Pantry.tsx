@@ -20,6 +20,7 @@ export function PantryView() {
   return (
     <div style={{ maxWidth: 880 }}>
       <div
+        data-tour="pantry"
         style={{
           background: p.accentTintBg,
           border: `1px solid ${p.accentTintBorder}`,

@@ -21,7 +21,10 @@ export function RecipesView() {
 
   return (
     <div>
-      <div style={{ position: 'relative', marginBottom: 22, maxWidth: 420 }}>
+      <div
+        data-tour="recipes"
+        style={{ position: 'relative', marginBottom: 22, maxWidth: 420 }}
+      >
         <span
           style={{
             position: 'absolute',

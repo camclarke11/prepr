@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useStore } from '../state/store';
 import { usePalette } from '../hooks';
+import type { Tab } from '../types';
 
 interface Step {
   target: string;
+  tab?: Tab;
   title: string;
   body: string;
 }
@@ -12,27 +14,43 @@ interface Step {
 const STEPS: Step[] = [
   {
     target: 'add',
+    tab: 'list',
     title: 'Add anything',
     body: 'Search or type a custom item, pick its emoji, then add it. Or tap any item in the grid below to add it fast.',
   },
   {
     target: 'list',
+    tab: 'list',
     title: 'Your list',
     body: 'Items you add land here, grouped by aisle. Tap a tile when it’s in your cart to tick it off; tap its count to change the amount or add a note.',
   },
   {
-    target: 'nav',
-    title: 'More than a list',
-    body: 'Save recipes, plan the week and track your pantry. Add a recipe and its ingredients fly straight onto your list.',
+    target: 'recipes',
+    tab: 'recipes',
+    title: 'Recipes',
+    body: 'Save your go-to recipes. Tap “＋ New recipe” at the top to add one — then “Add to list” drops its ingredients straight onto your shopping list.',
+  },
+  {
+    target: 'plan',
+    tab: 'plan',
+    title: 'Plan your week',
+    body: 'Give each day a meal from your recipes. Then “＋ Add week” at the top sends every ingredient to your list — staples you already have are skipped.',
+  },
+  {
+    target: 'pantry',
+    tab: 'pantry',
+    title: 'Your pantry',
+    body: 'Tick the staples you keep at home. They’re skipped when you add a recipe to your list, so you only buy what you actually need.',
   },
   {
     target: 'share',
+    tab: 'list',
     title: 'Shop together',
     body: 'Create a shared list and send the invite to your partner. Changes sync live, and you’ll get a nudge when they add something.',
   },
 ];
 
-/** A guided spotlight tour that points at real controls, one step at a time. */
+/** A guided spotlight tour that walks through every tab, one step at a time. */
 export function Tour() {
   const { state, actions } = useStore();
   const p = usePalette();
@@ -43,23 +61,32 @@ export function Tour() {
 
   useEffect(() => {
     if (!state.tourOpen) return;
-    const el = document.querySelector<HTMLElement>(`[data-tour="${step.target}"]`);
-    if (!el) {
-      setRect(null);
-      return;
-    }
-    el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
-    const measure = () => setRect(el.getBoundingClientRect());
-    measure();
-    const id = window.setInterval(measure, 200);
-    window.addEventListener('resize', measure);
-    window.addEventListener('scroll', measure, true);
+    // Switch to the tab this step lives on, then wait for its view to mount.
+    if (step.tab) actions.setTab(step.tab);
+    let scrolled = false;
+    const tick = () => {
+      const el = document.querySelector<HTMLElement>(`[data-tour="${step.target}"]`);
+      if (!el) {
+        setRect(null);
+        return;
+      }
+      if (!scrolled) {
+        el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
+        scrolled = true;
+      }
+      setRect(el.getBoundingClientRect());
+    };
+    tick();
+    const id = window.setInterval(tick, 150);
+    window.addEventListener('resize', tick);
+    window.addEventListener('scroll', tick, true);
     return () => {
       window.clearInterval(id);
-      window.removeEventListener('resize', measure);
-      window.removeEventListener('scroll', measure, true);
+      window.removeEventListener('resize', tick);
+      window.removeEventListener('scroll', tick, true);
     };
-  }, [i, state.tourOpen, step.target]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [i, state.tourOpen]);
 
   if (!state.tourOpen) return null;
 
@@ -133,7 +160,7 @@ export function Tour() {
   };
 
   return (
-    <div role="dialog" aria-label="Tour">
+    <div role="dialog" aria-label="Tutorial">
       {/* Block interaction with the app while the tour runs. */}
       <div style={{ position: 'fixed', inset: 0, zIndex: 1000 }} />
       {hole && <div style={hole} />}
