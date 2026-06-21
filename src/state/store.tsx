@@ -93,8 +93,10 @@ export interface AppState extends PersistedState {
   household: HouseholdRef | null;
   /** A household id pulled from a #join= link, awaiting confirmation. */
   pendingJoin: string | null;
-  /** First-run welcome/tutorial overlay. */
+  /** First-run welcome/name overlay. */
   welcomeOpen: boolean;
+  /** In-app guided coachmark tour running. */
+  tourOpen: boolean;
 }
 
 function loadPersisted(): Partial<PersistedState> {
@@ -147,6 +149,7 @@ function makeInitialState(): AppState {
     household,
     pendingJoin: null,
     welcomeOpen,
+    tourOpen: false,
     // A fresh install starts empty — a clean slate to build a real list on.
     // Persisted data is normalised on load; Array.isArray (not ??) so an
     // intentionally-empty list/plan is preserved.
@@ -225,6 +228,9 @@ export interface Actions {
   cancelJoin: () => void;
   dismissWelcome: () => void;
   openWelcome: () => void;
+  setMyName: (name: string) => void;
+  startTour: () => void;
+  endTour: () => void;
 }
 
 interface StoreValue {
@@ -974,6 +980,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         dispatch({ welcomeOpen: false });
       },
       openWelcome: () => dispatch({ welcomeOpen: true }),
+
+      setMyName: (name) => {
+        const nm = name.trim().slice(0, 40);
+        if (!nm) return;
+        const initial = (Array.from(nm)[0] || '?').toUpperCase();
+        dispatch((s) => {
+          // In a household the name is server-managed; otherwise rename the
+          // local "me" member so attributions and sharing use the real name.
+          if (s.household) return {};
+          const members = s.members.map((m) =>
+            m.name === s.activeMember ? { ...m, name: nm, initial } : m,
+          );
+          return { members, activeMember: nm };
+        });
+      },
+      startTour: () => dispatch({ tab: 'list', tourOpen: true }),
+      endTour: () => dispatch({ tourOpen: false }),
     };
   }, []);
 

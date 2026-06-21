@@ -71,7 +71,7 @@ export function ShoppingListView() {
       }
     >
       {/* ---- Your list ---- */}
-      <section>
+      <section data-tour="list">
         <div
           style={{
             display: 'flex',
@@ -190,7 +190,7 @@ export function ShoppingListView() {
           Add items
         </h2>
 
-        <div style={{ position: 'relative', marginBottom: 18 }}>
+        <div data-tour="add" style={{ position: 'relative', marginBottom: 18 }}>
           <span
             style={{
               position: 'absolute',

@@ -3,47 +3,28 @@ import { useStore } from '../state/store';
 import { usePalette } from '../hooks';
 import { Modal } from './Modal';
 
-const STEPS = [
-  {
-    icon: '🛒',
-    title: 'Welcome to prepr',
-    body: 'Your shared grocery list, recipe box, meal planner and pantry — all in one, and it works offline.',
-  },
-  {
-    icon: '➕',
-    title: 'Build your list',
-    body: 'Tap an item to add it. Search to add anything — with its own emoji and colour. Tap a tile when it’s in your cart to tick it off.',
-  },
-  {
-    icon: '👋',
-    title: 'Shop together',
-    body: 'Create a shared list and send the invite link to whoever you shop with. Changes sync live, and you’ll get a nudge when they add something.',
-  },
-];
-
-/** First-run tutorial — a short, dismissible carousel. */
+/** First-run intro: a warm hello + name capture, then launches the in-app tour. */
 export function Welcome() {
-  const { actions } = useStore();
+  const { state, actions } = useStore();
   const p = usePalette();
-  const [step, setStep] = useState(0);
-  const last = step === STEPS.length - 1;
-  const s = STEPS[step];
+  const [name, setName] = useState(
+    state.activeMember && state.activeMember !== 'You' ? state.activeMember : '',
+  );
 
-  const primaryBtn = {
-    padding: '13px 18px',
-    borderRadius: 13,
-    border: 'none',
-    background: p.accent,
-    color: '#fff',
-    fontWeight: 800,
-    fontSize: 15,
-    cursor: 'pointer',
-  } as const;
+  const start = () => {
+    actions.setMyName(name);
+    actions.dismissWelcome();
+    actions.startTour();
+  };
+  const skip = () => {
+    actions.setMyName(name);
+    actions.dismissWelcome();
+  };
 
   return (
     <Modal onClose={actions.dismissWelcome} width={400} labelledBy="welcome-title">
-      <div style={{ padding: '30px 28px 26px', textAlign: 'center' }}>
-        <div style={{ fontSize: 52, lineHeight: 1, marginBottom: 16 }}>{s.icon}</div>
+      <div style={{ padding: '32px 28px 26px', textAlign: 'center' }}>
+        <div style={{ fontSize: 52, lineHeight: 1, marginBottom: 16 }}>🛒</div>
         <h2
           id="welcome-title"
           style={{
@@ -54,7 +35,7 @@ export function Welcome() {
             letterSpacing: '-0.02em',
           }}
         >
-          {s.title}
+          Welcome to prepr
         </h2>
         <p
           style={{
@@ -65,81 +46,64 @@ export function Welcome() {
             color: p.textMuted,
           }}
         >
-          {s.body}
+          A shared grocery list, recipe box, meal planner and pantry — that works
+          offline. First, what should we call you?
         </p>
 
-        <div
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && name.trim() && start()}
+          placeholder="Your name"
+          aria-label="Your name"
+          autoFocus
           style={{
-            display: 'flex',
-            justifyContent: 'center',
-            gap: 7,
-            marginBottom: 22,
+            width: '100%',
+            boxSizing: 'border-box',
+            padding: '13px 15px',
+            borderRadius: 12,
+            border: `1px solid ${p.border}`,
+            background: p.card,
+            fontSize: 16,
+            textAlign: 'center',
+            outline: 'none',
+            color: p.text,
+            marginBottom: 16,
+          }}
+        />
+
+        <button
+          onClick={start}
+          disabled={!name.trim()}
+          className="pr-press"
+          style={{
+            width: '100%',
+            padding: 14,
+            borderRadius: 13,
+            border: 'none',
+            background: name.trim() ? p.accent : p.surfaceAlt,
+            color: name.trim() ? '#fff' : p.textFaint,
+            fontWeight: 800,
+            fontSize: 15,
+            cursor: name.trim() ? 'pointer' : 'default',
           }}
         >
-          {STEPS.map((_, i) => (
-            <span
-              key={i}
-              style={{
-                width: i === step ? 22 : 7,
-                height: 7,
-                borderRadius: 4,
-                background: i === step ? p.accent : p.border,
-                transition: 'width .2s ease, background .2s ease',
-              }}
-            />
-          ))}
-        </div>
-
-        {last ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <button
-              onClick={() => {
-                actions.dismissWelcome();
-                actions.openMembers();
-              }}
-              className="pr-press"
-              style={primaryBtn}
-            >
-              Create a shared list
-            </button>
-            <button
-              onClick={actions.dismissWelcome}
-              style={{
-                border: 'none',
-                background: 'none',
-                color: p.textMuted,
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              I’ll explore on my own
-            </button>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <button
-              onClick={actions.dismissWelcome}
-              style={{
-                border: 'none',
-                background: 'none',
-                color: p.textFaint,
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              Skip
-            </button>
-            <button
-              onClick={() => setStep((n) => n + 1)}
-              className="pr-press"
-              style={{ ...primaryBtn, flex: 1 }}
-            >
-              Next
-            </button>
-          </div>
-        )}
+          Show me around
+        </button>
+        <button
+          onClick={skip}
+          style={{
+            marginTop: 10,
+            border: 'none',
+            background: 'none',
+            color: p.textMuted,
+            fontSize: 14,
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
+        >
+          Skip
+        </button>
       </div>
     </Modal>
   );

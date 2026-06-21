@@ -145,6 +145,14 @@ describe('store', () => {
     expect(result.current.state.household).toBeNull();
   });
 
+  it('sets your name by renaming the active member', () => {
+    const { result } = setup();
+    act(() => result.current.actions.setMyName('Alex'));
+    expect(result.current.state.activeMember).toBe('Alex');
+    expect(result.current.state.members.some((m) => m.name === 'Alex')).toBe(true);
+    expect(result.current.state.members.some((m) => m.name === 'You')).toBe(false);
+  });
+
   it('creates a household and switches into shared mode', async () => {
     const member = {
       id: 'M1',
