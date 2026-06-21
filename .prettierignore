@@ -2,6 +2,7 @@ dist
 dev-dist
 coverage
 node_modules
+server
 package-lock.json
 public
 project

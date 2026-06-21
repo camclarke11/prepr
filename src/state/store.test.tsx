@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { StoreProvider, useStore } from './store';
@@ -131,6 +131,67 @@ describe('store', () => {
     expect(result.current.state.members).toHaveLength(1);
     expect(result.current.state.members[0].name).toBe('Zed');
     expect(result.current.state.activeMember).toBe('Zed');
+  });
+
+  it('creates a household and switches into shared mode', async () => {
+    const member = {
+      id: 'M1',
+      name: 'Alex',
+      color: '#3f7a4f',
+      initial: 'A',
+      joinedAt: 1,
+    };
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ householdId: 'HID', member, items: [], members: [member] }),
+    }));
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch);
+    const { result } = setup();
+    await act(async () => {
+      await result.current.actions.createHousehold('Alex');
+    });
+    expect(fetchMock).toHaveBeenCalled();
+    expect(result.current.state.household?.id).toBe('HID');
+    expect(result.current.state.household?.memberId).toBe('M1');
+    expect(result.current.state.activeMember).toBe('Alex');
+    expect(result.current.state.members.some((m) => m.name === 'Alex')).toBe(true);
+    vi.unstubAllGlobals();
+  });
+
+  it('a join link sets a pending join and opens the share modal', () => {
+    const { result } = setup();
+    act(() => result.current.actions.requestJoin('HID'));
+    expect(result.current.state.pendingJoin).toBe('HID');
+    expect(result.current.state.membersOpen).toBe(true);
+  });
+
+  it('leaving a household returns to solo mode', async () => {
+    const member = {
+      id: 'M1',
+      name: 'Alex',
+      color: '#3f7a4f',
+      initial: 'A',
+      joinedAt: 1,
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          householdId: 'HID',
+          member,
+          items: [],
+          members: [member],
+        }),
+      })) as unknown as typeof fetch,
+    );
+    const { result } = setup();
+    await act(async () => {
+      await result.current.actions.createHousehold('Alex');
+    });
+    act(() => result.current.actions.leaveHousehold());
+    expect(result.current.state.household).toBeNull();
+    vi.unstubAllGlobals();
   });
 
   it('adds a custom item with the chosen emoji and category', () => {

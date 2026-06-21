@@ -1,0 +1,25 @@
+{
+  // prepr real-time sync + notifications API (Cloudflare Worker + Durable Object).
+  // One HouseholdDO instance per shared household; clients connect over WebSocket.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "prepr-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2024-12-01",
+  "observability": { "enabled": true },
+  "durable_objects": {
+    "bindings": [{ "name": "HOUSEHOLD", "class_name": "HouseholdDO" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["HouseholdDO"] }],
+  "vars": {
+    // Browser origins allowed to call the API (comma-separated). Localhost is
+    // for `npm run dev`; the production origin is the GitHub Pages site.
+    "ALLOWED_ORIGINS": "https://prepr.camlc.dev,http://localhost:5173",
+    // VAPID public key (not secret) — clients fetch it to subscribe. The
+    // matching private key + subject are Worker secrets.
+    "VAPID_PUBLIC_KEY": "BA8S3n8n7g8BakNv3QBI_WdyO-XMkDvBrvDOsUNS6Jjuft9Y00AKRhVHgKH5uHhTxA2UzJorHx2MzfGmcDO0UTc"
+  },
+  // One-level subdomain so Cloudflare's existing *.camlc.dev wildcard cert
+  // covers it instantly (api.prepr.camlc.dev would be two levels deep and need
+  // a slow dedicated cert). Provisioned at deploy time.
+  "routes": [{ "pattern": "prepr-api.camlc.dev", "custom_domain": true }]
+}
