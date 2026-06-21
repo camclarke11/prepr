@@ -12,6 +12,7 @@ import { RecipeDetail } from './components/RecipeDetail';
 import { CreateRecipe } from './components/CreateRecipe';
 import { ItemDetail } from './components/ItemDetail';
 import { MembersModal } from './components/MembersModal';
+import { JoinPrompt } from './components/JoinPrompt';
 import { HelpOverlay } from './components/HelpOverlay';
 import { UpdateBanner } from './components/UpdateBanner';
 import { Toast } from './components/Toast';
@@ -67,7 +68,8 @@ export function App() {
     if (window.location.hash.startsWith('#join=')) {
       const id = window.location.hash.slice('#join='.length);
       history.replaceState(null, '', window.location.pathname);
-      if (id) actions.requestJoin(id);
+      // Skip if this device is already in that very household.
+      if (id && state.household?.id !== id) actions.requestJoin(id);
       return;
     }
     // A legacy "#data=" link offers to import someone else's snapshot.
@@ -196,6 +198,7 @@ export function App() {
       {state.createOpen && <CreateRecipe />}
       {state.detailKey && <ItemDetail />}
       {state.membersOpen && <MembersModal />}
+      {state.pendingJoin && <JoinPrompt />}
       {helpOpen && <HelpOverlay onClose={() => setHelpOpen(false)} />}
       <UpdateBanner />
       <Toast />

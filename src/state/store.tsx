@@ -945,7 +945,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         showToast('Left the shared list');
       },
 
-      requestJoin: (id) => dispatch({ pendingJoin: id, membersOpen: true }),
+      requestJoin: (id) => dispatch({ pendingJoin: id }),
       cancelJoin: () => dispatch({ pendingJoin: null }),
     };
   }, []);
