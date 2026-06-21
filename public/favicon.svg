@@ -1,5 +1,6 @@
 <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
   <rect width="512" height="512" rx="116" fill="#3f7a4f"/>
+  
   <g fill="#ffffff">
     <rect x="172" y="150" width="60" height="250" rx="20"/>
     <path fill-rule="evenodd" d="

@@ -14,6 +14,17 @@ const updateSW = registerSW({
       await updateSW(reload);
     });
   },
+  // A long-lived installed tab never re-checks for a new deployment on its own,
+  // so it could sit on a stale cache forever. Poll hourly so onNeedRefresh fires.
+  onRegisteredSW(_swUrl, registration) {
+    if (!registration) return;
+    setInterval(
+      () => {
+        void registration.update();
+      },
+      60 * 60 * 1000,
+    );
+  },
 });
 
 createRoot(document.getElementById('root')!).render(

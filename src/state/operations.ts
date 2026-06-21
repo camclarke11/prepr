@@ -1,5 +1,5 @@
 import type { CategoryName, Ingredient, ListItem, Plan, Recipe } from '../types';
-import { idify } from '../theme';
+import { DAYS, idify } from '../theme';
 
 export interface NewItemSpec {
   name: string;
@@ -70,7 +70,32 @@ export function setItemField<K extends keyof ListItem>(
   field: K,
   value: ListItem[K],
 ): ListItem[] {
-  return list.map((x) => (x.key === key ? { ...x, [field]: value } : x));
+  const idx = list.findIndex((x) => x.key === key);
+  if (idx < 0) return list;
+  const updated: ListItem = { ...list[idx] };
+  updated[field] = value;
+  // The key encodes the unit (see listKey), so a unit change must recompute it,
+  // otherwise the row keeps a key that disagrees with its unit and a later merge
+  // produces a duplicate instead of combining.
+  if (field === 'unit') {
+    const newKey = listKey(updated.name, updated.unit);
+    if (newKey !== key) {
+      updated.key = newKey;
+      const collide = list.findIndex((x, i) => i !== idx && x.key === newKey);
+      if (collide >= 0) {
+        // Editing the unit lands on an existing row — merge into it and drop
+        // the edited duplicate, preserving the unique-key invariant.
+        return list
+          .filter((_, i) => i !== idx)
+          .map((x) =>
+            x.key === newKey
+              ? { ...x, qty: round2(x.qty + updated.qty), checked: false }
+              : x,
+          );
+      }
+    }
+  }
+  return list.map((x, i) => (i === idx ? updated : x));
 }
 
 export function toggleChecked(list: ListItem[], key: string): ListItem[] {
@@ -107,12 +132,16 @@ export function addRecipeToList(
       skipped++;
       continue;
     }
+    const qty = round2(ingredient.qty * factor);
+    // Extreme down-scaling can round an ingredient away to nothing; don't push
+    // a zero-quantity row onto the list.
+    if (qty <= 0) continue;
     next = mergeIntoList(next, {
       name: ingredient.name,
       emoji: ingredient.emoji,
       category: ingredient.category,
       unit: ingredient.unit,
-      qty: round2(ingredient.qty * factor),
+      qty,
       by,
     });
     added++;
@@ -140,7 +169,10 @@ export function addWeekToList(
       if (!r) continue;
       for (const ing of r.ingredients) {
         if (pantry.includes(ing.name)) continue;
-        const k = ing.name + '|' + ing.unit;
+        // Aggregate under the same identity the list merges on (listKey), so the
+        // reported count matches what actually lands on the list and names that
+        // normalise to one key (e.g. "Olive Oil"/"Olive-Oil") don't double-count.
+        const k = listKey(ing.name, ing.unit);
         const existing = totals.get(k);
         if (existing) {
           existing.qty = round2((existing.qty ?? 0) + ing.qty);
@@ -253,6 +285,73 @@ export function normalizeRecipe(input: unknown): Recipe {
     custom: r.custom === true ? true : undefined,
     favorite: r.favorite === true ? true : undefined,
   };
+}
+
+/** Coerce an untrusted value into a clean list of non-empty strings. */
+export function normalizeStringArray(input: unknown): string[] {
+  return Array.isArray(input)
+    ? input.filter((x): x is string => typeof x === 'string' && !!x)
+    : [];
+}
+
+/**
+ * Coerce an untrusted list-item-shaped value (imported file / share link /
+ * persisted blob) into a valid ListItem, recomputing the key from name+unit so
+ * the merge identity always holds and a missing/garbage qty can never become NaN.
+ */
+export function normalizeListItem(input: unknown): ListItem {
+  const i = asRecord(input);
+  const name = typeof i.name === 'string' ? i.name : '';
+  const unit = typeof i.unit === 'string' ? i.unit : '';
+  const qty =
+    typeof i.qty === 'number' && Number.isFinite(i.qty) && i.qty > 0
+      ? round2(i.qty)
+      : 1;
+  return {
+    key: listKey(name, unit),
+    name,
+    emoji: typeof i.emoji === 'string' && i.emoji ? i.emoji : '🛒',
+    category: typeof i.category === 'string' ? (i.category as CategoryName) : 'Pantry',
+    qty,
+    unit,
+    checked: i.checked === true,
+    by: typeof i.by === 'string' && i.by ? i.by : 'You',
+    spec: typeof i.spec === 'string' && i.spec ? i.spec : undefined,
+  };
+}
+
+/**
+ * Coerce an untrusted value into a valid list, dropping nameless rows and
+ * merging any items that normalise to the same key (keeps keys unique).
+ */
+export function normalizeList(input: unknown): ListItem[] {
+  if (!Array.isArray(input)) return [];
+  const out: ListItem[] = [];
+  for (const raw of input) {
+    const item = normalizeListItem(raw);
+    if (!item.name.trim()) continue;
+    const i = out.findIndex((x) => x.key === item.key);
+    if (i >= 0) {
+      out[i] = { ...out[i], qty: round2(out[i].qty + item.qty) };
+    } else {
+      out.push(item);
+    }
+  }
+  return out;
+}
+
+/**
+ * Coerce an untrusted value into a valid Plan: every day present, each mapped to
+ * an array of recipe-id strings. Guards the `for…of`/`.filter` callers that would
+ * otherwise crash on a non-array day value from a corrupted import.
+ */
+export function normalizePlan(input: unknown): Plan {
+  const src = asRecord(input);
+  const plan = {} as Plan;
+  for (const day of DAYS) {
+    plan[day] = normalizeStringArray(src[day]);
+  }
+  return plan;
 }
 
 export function togglePantry(pantry: string[], name: string): string[] {
