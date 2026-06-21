@@ -7,7 +7,7 @@ import {
   useRef,
   type ReactNode,
 } from 'react';
-import type { ListItem, PersistedState, Recipe, Tab } from '../types';
+import type { CategoryName, ListItem, PersistedState, Recipe, Tab } from '../types';
 import { DEFAULT_MEMBERS, MEMBER_COLORS } from '../theme';
 import {
   CATALOG,
@@ -113,7 +113,7 @@ export interface Actions {
   setRecipeQuery: (q: string) => void;
   toggleTheme: () => void;
   addCatalog: (id: string) => void;
-  addCustom: () => void;
+  addCustom: (opts?: { emoji?: string; category?: CategoryName }) => void;
   changeQty: (key: string, delta: number) => void;
   setItemField: (key: string, field: 'unit' | 'spec', value: string) => void;
   openDetail: (key: string) => void;
@@ -254,7 +254,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         flash(c.id);
       },
 
-      addCustom: () => {
+      addCustom: (opts) => {
         const q = stateRef.current.search.trim();
         if (!q) return;
         const c = CATALOG.find((x) => x.name.toLowerCase() === q.toLowerCase());
@@ -274,8 +274,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           dispatch((s) => ({
             list: ops.mergeIntoList(s.list, {
               name: q,
-              emoji: '🛒',
-              category: 'Pantry',
+              emoji: opts?.emoji || '🛒',
+              category: opts?.category || 'Pantry',
               by: s.activeMember,
             }),
             search: '',

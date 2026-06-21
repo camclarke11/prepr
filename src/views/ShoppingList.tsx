@@ -1,9 +1,13 @@
+import { useEffect, useState } from 'react';
 import { useStore } from '../state/store';
 import { usePalette, useIsMobile } from '../hooks';
 import { CATEGORIES, categoryByName } from '../theme';
 import { CATALOG } from '../data/seed';
+import { suggestEmoji } from '../data/emoji';
 import { ActiveTile, CatalogTile, CategoryHeading } from '../components/tiles';
+import { EmojiPicker } from '../components/EmojiPicker';
 import { SearchIcon } from '../components/icons';
+import type { CategoryName } from '../types';
 
 export function ShoppingListView() {
   const { state, actions } = useStore();
@@ -26,6 +30,26 @@ export function ShoppingListView() {
   }).filter((g) => g.items.length > 0);
 
   const showCustom = q.length > 0 && !CATALOG.some((c) => c.name.toLowerCase() === q);
+
+  // Emoji selection for a custom item: a smart suggestion from the typed name,
+  // overridable via the picker. The emoji also decides the item's category.
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [emojiOverride, setEmojiOverride] = useState<{
+    emoji: string;
+    category: CategoryName;
+  } | null>(null);
+  // Re-suggest when the name changes; a manual pick holds until the next edit.
+  useEffect(() => setEmojiOverride(null), [search]);
+
+  const topSuggestion = suggestEmoji(search.trim())[0];
+  const customEmoji = emojiOverride?.emoji ?? topSuggestion?.emoji ?? '🛒';
+  const customCategory: CategoryName =
+    emojiOverride?.category ?? topSuggestion?.category ?? 'Pantry';
+  const addCustomItem = () => {
+    actions.addCustom({ emoji: customEmoji, category: customCategory });
+    setEmojiOverride(null);
+    setPickerOpen(false);
+  };
 
   const recentItems = !q
     ? recents
@@ -182,7 +206,7 @@ export function ShoppingListView() {
             value={search}
             onChange={(e) => actions.setSearch(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && showCustom) actions.addCustom();
+              if (e.key === 'Enter' && showCustom) addCustomItem();
             }}
             placeholder="Search or add an item…"
             aria-label="Search or add an item"
@@ -200,28 +224,64 @@ export function ShoppingListView() {
         </div>
 
         {showCustom && (
-          <button
-            onClick={actions.addCustom}
-            className="pr-press"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              width: '100%',
-              padding: '13px 15px',
-              marginBottom: 16,
-              borderRadius: 13,
-              border: `1.5px solid ${p.accent}`,
-              background: p.accentTintBg,
-              color: p.accentTintText,
-              fontWeight: 700,
-              fontSize: 15,
-              cursor: 'pointer',
-            }}
-          >
-            <span style={{ fontSize: 20, lineHeight: 1 }}>＋</span> Add “{search.trim()}
-            ” to list
-          </button>
+          <div style={{ position: 'relative', marginBottom: 16 }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => setPickerOpen((o) => !o)}
+                aria-label="Choose emoji"
+                aria-expanded={pickerOpen}
+                title="Choose emoji"
+                style={{
+                  flex: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '0 12px',
+                  borderRadius: 13,
+                  border: `1.5px solid ${p.accent}`,
+                  background: p.accentTintBg,
+                  cursor: 'pointer',
+                }}
+              >
+                <span style={{ fontSize: 22, lineHeight: 1 }}>{customEmoji}</span>
+                <span style={{ fontSize: 10, color: p.accentTintText }}>▾</span>
+              </button>
+              <button
+                onClick={addCustomItem}
+                className="pr-press"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  flex: 1,
+                  padding: '13px 15px',
+                  borderRadius: 13,
+                  border: `1.5px solid ${p.accent}`,
+                  background: p.accentTintBg,
+                  color: p.accentTintText,
+                  fontWeight: 700,
+                  fontSize: 15,
+                  cursor: 'pointer',
+                }}
+              >
+                <span style={{ fontSize: 20, lineHeight: 1 }}>＋</span> Add “
+                {search.trim()}” to list
+              </button>
+            </div>
+            {pickerOpen && (
+              <EmojiPicker
+                query={search.trim()}
+                value={customEmoji}
+                onPick={(emoji, category) => {
+                  setEmojiOverride({ emoji, category });
+                  setPickerOpen(false);
+                }}
+                onClose={() => setPickerOpen(false)}
+                p={p}
+              />
+            )}
+          </div>
         )}
 
         {recentItems.length > 0 && (
@@ -240,7 +300,18 @@ export function ShoppingListView() {
             </div>
             <div
               className="pr-hide-scroll"
-              style={{ display: 'flex', gap: 9, overflowX: 'auto', padding: 2 }}
+              style={{
+                display: 'flex',
+                gap: 9,
+                overflowX: 'auto',
+                // A scroll container clips on all four sides, which would cut off
+                // each tile's qty badge (top: -7), hover lift and pop/shadow
+                // animations — including the pop on the first tile against the
+                // left edge. Pad on every side to give them room, then pull the
+                // margin back by the same amounts so the layout is unchanged.
+                padding: '12px 16px 18px',
+                margin: '-12px -16px -18px',
+              }}
             >
               {recentItems.map((c) => (
                 <CatalogTile

@@ -133,6 +133,24 @@ describe('store', () => {
     expect(result.current.state.activeMember).toBe('Zed');
   });
 
+  it('adds a custom item with the chosen emoji and category', () => {
+    const { result } = setup();
+    act(() => result.current.actions.setSearch('Dragonfruit'));
+    act(() => result.current.actions.addCustom({ emoji: '🐉', category: 'Produce' }));
+    const item = result.current.state.list.find((x) => x.name === 'Dragonfruit');
+    expect(item?.emoji).toBe('🐉');
+    expect(item?.category).toBe('Produce');
+  });
+
+  it('falls back to a default emoji/category when none is chosen', () => {
+    const { result } = setup();
+    act(() => result.current.actions.setSearch('Mystery Item'));
+    act(() => result.current.actions.addCustom());
+    const item = result.current.state.list.find((x) => x.name === 'Mystery Item');
+    expect(item?.emoji).toBe('🛒');
+    expect(item?.category).toBe('Pantry');
+  });
+
   it('imports a malformed plan without crashing and normalises the days', () => {
     const { result } = setup();
     act(() =>
