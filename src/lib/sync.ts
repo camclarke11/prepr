@@ -22,6 +22,28 @@ export interface SyncMember {
   joinedAt: number;
 }
 
+export interface SyncIngredient {
+  name: string;
+  emoji: string;
+  qty: number;
+  unit: string;
+  category: string;
+}
+
+export interface SyncRecipe {
+  id: string;
+  name: string;
+  emoji: string;
+  servings: number;
+  time: string;
+  ingredients: SyncIngredient[];
+  steps: string[];
+  custom?: boolean;
+  favorite?: boolean;
+}
+
+export type SyncPlan = Record<string, string[]>;
+
 export type Op =
   | {
       kind: 'upsert';
@@ -36,14 +58,29 @@ export type Op =
   | { kind: 'checked'; key: string; checked: boolean }
   | { kind: 'field'; key: string; field: 'unit' | 'spec'; value: string }
   | { kind: 'remove'; key: string }
-  | { kind: 'clear' };
+  | { kind: 'clear' }
+  | { kind: 'recipeUpsert'; recipe: SyncRecipe }
+  | { kind: 'recipeDelete'; id: string }
+  | { kind: 'planSet'; day: string; ids: string[] }
+  | { kind: 'pantrySet'; name: string; on: boolean };
 
 export type ServerMsg =
-  | { t: 'state'; items: SyncItem[]; members: SyncMember[] }
+  | {
+      t: 'state';
+      items: SyncItem[];
+      members: SyncMember[];
+      recipes: SyncRecipe[];
+      plan: SyncPlan;
+      pantry: string[];
+    }
   | { t: 'item'; item: SyncItem }
   | { t: 'remove'; key: string }
   | { t: 'clear' }
   | { t: 'members'; members: SyncMember[] }
+  | { t: 'recipe'; recipe: SyncRecipe }
+  | { t: 'recipeRemove'; id: string }
+  | { t: 'plan'; day: string; ids: string[] }
+  | { t: 'pantry'; name: string; on: boolean }
   | { t: 'pong' };
 
 export interface HouseholdRef {
@@ -56,6 +93,9 @@ interface JoinResult {
   member: SyncMember;
   items: SyncItem[];
   members: SyncMember[];
+  recipes: SyncRecipe[];
+  plan: SyncPlan;
+  pantry: string[];
 }
 interface CreateResult extends JoinResult {
   householdId: string;
