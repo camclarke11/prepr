@@ -130,7 +130,7 @@ export function SettingsMenu() {
           {item('Copy share link', actions.shareLink)}
           {item('Export data', actions.exportData)}
           {item('Import data', () => fileRef.current?.click())}
-          {item('Show intro', actions.openWelcome)}
+          {item('Tutorial', actions.openWelcome)}
           <div style={{ height: 1, background: p.borderSoft, margin: '5px 0' }} />
           {item('Reset to sample', () => {
             if (

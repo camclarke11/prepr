@@ -37,6 +37,7 @@ export function MealPlanView() {
         return (
           <div
             key={day}
+            data-tour={i === 0 ? 'plan' : undefined}
             style={{
               background: isToday ? p.surface : p.surfaceAlt,
               border: isToday ? `2px solid ${p.accent}` : `1px solid ${p.border}`,
