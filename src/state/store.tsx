@@ -7,7 +7,14 @@ import {
   useRef,
   type ReactNode,
 } from 'react';
-import type { CategoryName, ListItem, PersistedState, Recipe, Tab } from '../types';
+import type {
+  CategoryName,
+  ListItem,
+  Member,
+  PersistedState,
+  Recipe,
+  Tab,
+} from '../types';
 import { DEFAULT_MEMBERS, MEMBER_COLORS } from '../theme';
 import {
   CATALOG,
@@ -21,8 +28,42 @@ import * as ops from './operations';
 import type { RecipeDraft } from './operations';
 import { buildShareUrl } from '../lib/share';
 import { parseIngredients } from '../lib/parseIngredients';
+import * as sync from '../lib/sync';
+import type { HouseholdRef, Op, ServerMsg, SyncItem, SyncMember } from '../lib/sync';
 
 const STORAGE_KEY = 'prepr.v2';
+// The household ref holds the secret household id, so it lives in its own key —
+// never folded into the exported/shared PersistedState.
+const HOUSEHOLD_KEY = 'prepr.household';
+
+function loadHousehold(): HouseholdRef | null {
+  if (typeof localStorage === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(HOUSEHOLD_KEY);
+    const h = raw ? (JSON.parse(raw) as HouseholdRef) : null;
+    return h && h.id && h.memberId ? h : null;
+  } catch {
+    return null;
+  }
+}
+
+function toListItem(i: SyncItem): ListItem {
+  return {
+    key: i.key,
+    name: i.name,
+    emoji: i.emoji,
+    category: i.category as CategoryName,
+    qty: i.qty,
+    unit: i.unit,
+    checked: i.checked,
+    by: i.by,
+    spec: i.spec,
+  };
+}
+
+function toMember(m: SyncMember): Member {
+  return { name: m.name, color: m.color, initial: m.initial };
+}
 
 export interface ToastState {
   id: number;
@@ -44,6 +85,10 @@ export interface AppState extends PersistedState {
   flash: string | null;
   recipeQuery: string;
   membersOpen: boolean;
+  /** Set when this device has joined a shared household (real-time sync on). */
+  household: HouseholdRef | null;
+  /** A household id pulled from a #join= link, awaiting confirmation. */
+  pendingJoin: string | null;
 }
 
 function loadPersisted(): Partial<PersistedState> {
@@ -58,10 +103,14 @@ function loadPersisted(): Partial<PersistedState> {
 
 function makeInitialState(): AppState {
   const saved = loadPersisted();
+  const household = loadHousehold();
   const members =
     saved.members && saved.members.length ? saved.members : DEFAULT_MEMBERS;
-  const activeMember =
-    saved.activeMember && members.some((m) => m.name === saved.activeMember)
+  // In a household, this device IS the joined member; otherwise use the saved
+  // local active member. Server state reconciles both on (re)connect.
+  const activeMember = household
+    ? household.memberName
+    : saved.activeMember && members.some((m) => m.name === saved.activeMember)
       ? saved.activeMember
       : members[0].name;
   return {
@@ -77,6 +126,8 @@ function makeInitialState(): AppState {
     flash: null,
     recipeQuery: '',
     membersOpen: false,
+    household,
+    pendingJoin: null,
     // Normalise the persisted slice on load too: a localStorage blob corrupted
     // by an older schema or a bad import is just as untrusted as a share link.
     // Array.isArray (not ??) so an intentionally-empty list/plan is preserved.
@@ -151,6 +202,12 @@ export interface Actions {
   importData: (data: Partial<PersistedState>) => void;
   shareLink: () => void;
   resetData: () => void;
+  // --- Shared households (real-time sync) ---
+  createHousehold: (name: string) => Promise<void>;
+  joinHousehold: (id: string, name: string) => Promise<void>;
+  leaveHousehold: () => void;
+  requestJoin: (id: string) => void;
+  cancelJoin: () => void;
 }
 
 interface StoreValue {
@@ -178,6 +235,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const flashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const undoRef = useRef<ListItem[] | null>(null);
   const toastSeq = useRef(0);
+  const syncRef = useRef<sync.SyncClient | null>(null);
+  // Ops to flush onto a freshly-created household (seeding it with local items).
+  const seedRef = useRef<Op[]>([]);
 
   // Persist the relevant slice whenever it changes.
   useEffect(() => {
@@ -215,6 +275,67 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // Persist the household ref on its own (it holds the secret household id, so it
+  // must never end up in the exported/shared PersistedState).
+  useEffect(() => {
+    if (typeof localStorage === 'undefined') return;
+    try {
+      if (state.household)
+        localStorage.setItem(HOUSEHOLD_KEY, JSON.stringify(state.household));
+      else localStorage.removeItem(HOUSEHOLD_KEY);
+    } catch {
+      /* ignore */
+    }
+  }, [state.household]);
+
+  // While in a household, hold a live channel and fold server changes into state.
+  const householdId = state.household?.id;
+  const memberId = state.household?.memberId;
+  useEffect(() => {
+    if (!householdId || !memberId) return;
+    const apply = (msg: ServerMsg) => {
+      switch (msg.t) {
+        case 'state':
+          dispatch({
+            list: msg.items.map(toListItem),
+            members: msg.members.map(toMember),
+          });
+          break;
+        case 'item': {
+          const item = toListItem(msg.item);
+          dispatch((s) => {
+            const i = s.list.findIndex((x) => x.key === item.key);
+            const list = s.list.slice();
+            if (i >= 0) list[i] = item;
+            else list.push(item);
+            return { list };
+          });
+          break;
+        }
+        case 'remove':
+          dispatch((s) => ({ list: s.list.filter((x) => x.key !== msg.key) }));
+          break;
+        case 'clear':
+          dispatch({ list: [] });
+          break;
+        case 'members':
+          dispatch({ members: msg.members.map(toMember) });
+          break;
+        case 'pong':
+          break;
+      }
+    };
+    const client = new sync.SyncClient(householdId, memberId, apply);
+    syncRef.current = client;
+    client.connect();
+    // Flush any seed ops queued by createHousehold (they send once connected).
+    for (const op of seedRef.current.splice(0)) client.send(op);
+    return () => {
+      client.close();
+      if (syncRef.current === client) syncRef.current = null;
+    };
+  }, [householdId, memberId]);
+
   const actions = useMemo<Actions>(() => {
     const showToast = (msg: string, opts: { undo?: boolean; dur?: number } = {}) => {
       const dur = opts.dur ?? 2;
@@ -230,6 +351,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       dispatch({ flash: id });
       if (flashTimer.current) clearTimeout(flashTimer.current);
       flashTimer.current = setTimeout(() => dispatch({ flash: null }), 550);
+    };
+
+    // When in a household, mirror local list mutations to the server. The echo
+    // (server broadcast) reconciles every device, including this one, so local
+    // updates stay optimistic and snappy.
+    const sendOp = (op: Op) => {
+      if (stateRef.current.household) syncRef.current?.send(op);
     };
 
     return {
@@ -252,6 +380,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           recents: ops.pushRecent(s.recents, c.id),
         }));
         flash(c.id);
+        sendOp({ kind: 'upsert', name: c.name, emoji: c.emoji, category: c.category });
       },
 
       addCustom: (opts) => {
@@ -270,6 +399,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             search: '',
           }));
           flash(c.id);
+          sendOp({
+            kind: 'upsert',
+            name: c.name,
+            emoji: c.emoji,
+            category: c.category,
+          });
         } else {
           dispatch((s) => ({
             list: ops.mergeIntoList(s.list, {
@@ -280,15 +415,31 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             }),
             search: '',
           }));
+          sendOp({
+            kind: 'upsert',
+            name: q,
+            emoji: opts?.emoji || '🛒',
+            category: opts?.category || 'Pantry',
+          });
         }
         showToast(`Added “${q}”`);
       },
 
-      changeQty: (key, delta) =>
-        dispatch((s) => ({ list: ops.changeQty(s.list, key, delta) })),
+      changeQty: (key, delta) => {
+        const cur = stateRef.current.list.find((x) => x.key === key);
+        dispatch((s) => ({ list: ops.changeQty(s.list, key, delta) }));
+        if (cur)
+          sendOp({
+            kind: 'setQty',
+            key,
+            qty: Math.round((cur.qty + delta) * 100) / 100,
+          });
+      },
 
-      setItemField: (key, field, value) =>
-        dispatch((s) => ({ list: ops.setItemField(s.list, key, field, value) })),
+      setItemField: (key, field, value) => {
+        dispatch((s) => ({ list: ops.setItemField(s.list, key, field, value) }));
+        sendOp({ kind: 'field', key, field, value });
+      },
 
       openDetail: (key) => dispatch({ detailKey: key }),
       closeDetail: () => dispatch({ detailKey: null }),
@@ -302,6 +453,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           detailKey: null,
         }));
         showToast(`Got ${it.name}`, { undo: true, dur: 5 });
+        sendOp({ kind: 'remove', key });
       },
 
       undo: () => {
@@ -314,6 +466,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           return { list: [...s.list, ...restored], toast: null };
         });
         if (toastTimer.current) clearTimeout(toastTimer.current);
+        // Re-create the restored items on the server.
+        for (const it of items) {
+          sendOp({
+            kind: 'upsert',
+            name: it.name,
+            emoji: it.emoji,
+            category: it.category,
+            unit: it.unit,
+            qty: it.qty,
+            spec: it.spec,
+          });
+        }
       },
 
       clearAll: () => {
@@ -325,6 +489,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           undo: true,
           dur: 6,
         });
+        sendOp({ kind: 'clear' });
       },
 
       openRecipe: (id) => {
@@ -336,11 +501,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       decServings: () => dispatch((s) => ({ servings: Math.max(1, s.servings - 1) })),
 
       addRecipeToList: (recipe, servings) => {
+        const pantry = stateRef.current.pantry;
         const { list, added, skipped } = ops.addRecipeToList(
           stateRef.current.list,
           recipe,
           servings,
-          stateRef.current.pantry,
+          pantry,
           stateRef.current.activeMember,
         );
         dispatch({ list, openRecipe: null });
@@ -348,6 +514,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           `Added ${added} item${added === 1 ? '' : 's'}` +
             (skipped ? ` · ${skipped} in pantry` : ''),
         );
+        // Mirror each scaled, non-pantry ingredient to the server.
+        const factor = servings / recipe.servings;
+        for (const ing of recipe.ingredients) {
+          if (pantry.includes(ing.name)) continue;
+          const qty = Math.round(ing.qty * factor * 100) / 100;
+          if (qty <= 0) continue;
+          sendOp({
+            kind: 'upsert',
+            name: ing.name,
+            emoji: ing.emoji,
+            category: ing.category,
+            unit: ing.unit,
+            qty,
+          });
+        }
       },
 
       toggleFavorite: (id) =>
@@ -396,6 +577,33 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }
         dispatch({ list });
         showToast(`Added ${count} item${count === 1 ? '' : 's'} from your week`);
+        // Mirror the aggregated week to the server (same identity as the merge).
+        if (stateRef.current.household) {
+          const s = stateRef.current;
+          const totals = new Map<string, Op & { kind: 'upsert' }>();
+          for (const ids of Object.values(s.plan)) {
+            for (const id of ids) {
+              const r = s.recipes.find((x) => x.id === id);
+              if (!r) continue;
+              for (const ing of r.ingredients) {
+                if (s.pantry.includes(ing.name)) continue;
+                const k = ops.listKey(ing.name, ing.unit);
+                const existing = totals.get(k);
+                if (existing) existing.qty = (existing.qty ?? 0) + ing.qty;
+                else
+                  totals.set(k, {
+                    kind: 'upsert',
+                    name: ing.name,
+                    emoji: ing.emoji,
+                    category: ing.category,
+                    unit: ing.unit,
+                    qty: ing.qty,
+                  });
+              }
+            }
+          }
+          for (const op of totals.values()) sendOp(op);
+        }
       },
 
       togglePantry: (name) =>
@@ -678,6 +886,67 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         });
         showToast('Reset to sample data');
       },
+
+      createHousehold: async (name) => {
+        try {
+          const res = await sync.createHousehold(name);
+          const local = stateRef.current.list;
+          dispatch({
+            household: {
+              id: res.householdId,
+              memberId: res.member.id,
+              memberName: res.member.name,
+            },
+            members: res.members.map(toMember),
+            activeMember: res.member.name,
+            membersOpen: false,
+            pendingJoin: null,
+          });
+          // Seed the new shared list with whatever was on this device — the
+          // connect effect flushes these once the WebSocket is up.
+          seedRef.current = local.map((it) => ({
+            kind: 'upsert' as const,
+            name: it.name,
+            emoji: it.emoji,
+            category: it.category,
+            unit: it.unit,
+            qty: it.qty,
+            spec: it.spec,
+          }));
+          showToast('Shared list created');
+        } catch {
+          showToast('Could not create the shared list');
+        }
+      },
+
+      joinHousehold: async (id, name) => {
+        try {
+          const res = await sync.joinHousehold(id, name);
+          dispatch({
+            household: { id, memberId: res.member.id, memberName: res.member.name },
+            members: res.members.map(toMember),
+            activeMember: res.member.name,
+            list: res.items.map(toListItem),
+            membersOpen: false,
+            pendingJoin: null,
+          });
+          showToast('Joined the shared list');
+        } catch {
+          showToast('Could not join — check the link');
+        }
+      },
+
+      leaveHousehold: () => {
+        dispatch({
+          household: null,
+          members: DEFAULT_MEMBERS,
+          activeMember: DEFAULT_MEMBERS[0].name,
+        });
+        showToast('Left the shared list');
+      },
+
+      requestJoin: (id) => dispatch({ pendingJoin: id, membersOpen: true }),
+      cancelJoin: () => dispatch({ pendingJoin: null }),
     };
   }, []);
 

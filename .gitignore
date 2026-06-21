@@ -37,3 +37,6 @@ dev-dist/
 
 # TypeScript incremental build info
 *.tsbuildinfo
+
+# Cloudflare Wrangler local state
+.wrangler/

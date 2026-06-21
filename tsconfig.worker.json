@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "lib": ["ES2021", "WebWorker"],
+    "types": [],
+    "noEmit": true
+  },
+  "include": ["src/sw.ts"],
+  "exclude": []
+}

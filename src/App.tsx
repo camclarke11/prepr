@@ -16,6 +16,7 @@ import { HelpOverlay } from './components/HelpOverlay';
 import { UpdateBanner } from './components/UpdateBanner';
 import { Toast } from './components/Toast';
 import { decodeShare, SHARE_PREFIX } from './lib/share';
+import { refreshSubscription } from './lib/push';
 import type { Tab } from './types';
 
 const TAB_HASH: Record<Tab, string> = {
@@ -52,8 +53,24 @@ export function App() {
     if (meta) meta.setAttribute('content', state.theme === 'dark' ? p.bg : p.accent);
   }, [p, state.theme]);
 
-  // A shared "#data=" link offers to import someone else's data on first load.
+  // Re-validate the push subscription each launch while in a household (iOS
+  // churns subscriptions and pushsubscriptionchange is unreliable).
   useEffect(() => {
+    if (state.household) {
+      void refreshSubscription(state.household.id, state.household.memberId);
+    }
+  }, [state.household]);
+
+  // Invite + share links handled on first load.
+  useEffect(() => {
+    // A "#join=" invite link opens the pairing modal, prefilled and ready.
+    if (window.location.hash.startsWith('#join=')) {
+      const id = window.location.hash.slice('#join='.length);
+      history.replaceState(null, '', window.location.pathname);
+      if (id) actions.requestJoin(id);
+      return;
+    }
+    // A legacy "#data=" link offers to import someone else's snapshot.
     if (window.location.hash.startsWith(SHARE_PREFIX)) {
       const payload = window.location.hash.slice(SHARE_PREFIX.length);
       const data = decodeShare(payload);

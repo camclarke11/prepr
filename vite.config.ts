@@ -10,6 +10,10 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'prompt',
+      // Custom service worker (src/sw.ts) so we can handle push + notificationclick.
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       includeAssets: ['favicon.svg', 'favicon-32.png', 'apple-touch-icon.png'],
       manifest: {
         name: 'prepr — shared grocery & meal planning',
@@ -42,30 +46,12 @@ export default defineConfig({
           },
         ],
       },
-      workbox: {
+      // Under injectManifest, only the glob config is honoured — runtime caching
+      // and the navigation fallback live in src/sw.ts instead.
+      injectManifest: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
-        navigateFallback: '/index.html',
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-            handler: 'StaleWhileRevalidate',
-            options: {
-              cacheName: 'google-fonts-stylesheets',
-              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-          {
-            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-webfonts',
-              expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 365 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-        ],
       },
+      devOptions: { enabled: true, type: 'module', navigateFallback: 'index.html' },
     }),
   ],
   test: {
