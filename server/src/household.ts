@@ -1,8 +1,25 @@
 import { DurableObject } from 'cloudflare:workers';
 import { buildPushHTTPRequest } from '@pushforge/builder';
 import type { Env } from './env';
-import type { ClientMsg, Op, ServerMsg, SyncItem, SyncMember } from './protocol';
+import type {
+  ClientMsg,
+  Op,
+  ServerMsg,
+  SyncItem,
+  SyncMember,
+  SyncPlan,
+  SyncRecipe,
+} from './protocol';
 import { initialOf, listKey, MEMBER_COLORS, randomToken, round2 } from './lib';
+
+/** The full shared state of a household. */
+interface Snapshot {
+  items: SyncItem[];
+  members: SyncMember[];
+  recipes: SyncRecipe[];
+  plan: SyncPlan;
+  pantry: string[];
+}
 
 /** Debounce window for batching a burst of adds into one notification. */
 const BATCH_WINDOW_MS = 10_000;
@@ -89,6 +106,18 @@ export class HouseholdDO extends DurableObject<Env> {
           emoji TEXT NOT NULL,
           created_at INTEGER NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS recipes (
+          id TEXT PRIMARY KEY,
+          data TEXT NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS plan (
+          day TEXT PRIMARY KEY,
+          ids TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS pantry (
+          name TEXT PRIMARY KEY
+        );
       `);
       // For DOs created before notify_adds existed (ALTER is idempotent here via
       // the catch — SQLite has no ADD COLUMN IF NOT EXISTS).
@@ -105,7 +134,7 @@ export class HouseholdDO extends DurableObject<Env> {
   // --- RPC (called by the Worker for HTTP requests) -----------------------
 
   /** Register a new member (first time a device pairs) and return the state. */
-  join(name: string): { member: SyncMember; items: SyncItem[]; members: SyncMember[] } {
+  join(name: string): { member: SyncMember } & Snapshot {
     const clean = name.trim().slice(0, 40) || 'Guest';
     const count = this.sql.exec<{ n: number }>('SELECT COUNT(*) AS n FROM members').one()
       .n;
@@ -125,11 +154,21 @@ export class HouseholdDO extends DurableObject<Env> {
       member.joinedAt,
     );
     this.broadcast({ t: 'members', members: this.allMembers() });
-    return { member, items: this.allItems(), members: this.allMembers() };
+    return { member, ...this.snapshot() };
   }
 
-  getState(): { items: SyncItem[]; members: SyncMember[] } {
-    return { items: this.allItems(), members: this.allMembers() };
+  getState(): Snapshot {
+    return this.snapshot();
+  }
+
+  private snapshot(): Snapshot {
+    return {
+      items: this.allItems(),
+      members: this.allMembers(),
+      recipes: this.allRecipes(),
+      plan: this.planObj(),
+      pantry: this.allPantry(),
+    };
   }
 
   /** Apply an op received over HTTP (WebSocket is the primary path). */
@@ -175,13 +214,7 @@ export class HouseholdDO extends DurableObject<Env> {
     this.ctx.acceptWebSocket(server);
     server.serializeAttachment({ memberId } satisfies SocketMeta);
     // Send the current state to the freshly-connected client.
-    server.send(
-      JSON.stringify({
-        t: 'state',
-        items: this.allItems(),
-        members: this.allMembers(),
-      } satisfies ServerMsg),
-    );
+    server.send(JSON.stringify({ t: 'state', ...this.snapshot() } satisfies ServerMsg));
     return new Response(null, { status: 101, webSocket: client });
   }
 
@@ -340,6 +373,57 @@ export class HouseholdDO extends DurableObject<Env> {
       case 'clear': {
         this.sql.exec('DELETE FROM items');
         return { messages: [{ t: 'clear' }], added: [] };
+      }
+
+      case 'recipeUpsert': {
+        const r = op.recipe;
+        this.sql.exec(
+          `INSERT INTO recipes (id, data, updated_at) VALUES (?, ?, ?)
+           ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at`,
+          r.id,
+          JSON.stringify(r),
+          now,
+        );
+        return { messages: [{ t: 'recipe', recipe: r }], added: [] };
+      }
+
+      case 'recipeDelete': {
+        this.sql.exec('DELETE FROM recipes WHERE id = ?', op.id);
+        const messages: ServerMsg[] = [{ t: 'recipeRemove', id: op.id }];
+        // Cascade: strip the deleted recipe from any planned days.
+        const days = this.sql
+          .exec<{ day: string; ids: string }>('SELECT day, ids FROM plan')
+          .toArray();
+        for (const d of days) {
+          const ids = safeIds(d.ids);
+          if (ids.includes(op.id)) {
+            const nextIds = ids.filter((x) => x !== op.id);
+            this.sql.exec(
+              'UPDATE plan SET ids = ? WHERE day = ?',
+              JSON.stringify(nextIds),
+              d.day,
+            );
+            messages.push({ t: 'plan', day: d.day, ids: nextIds });
+          }
+        }
+        return { messages, added: [] };
+      }
+
+      case 'planSet': {
+        const ids = op.ids.filter((x): x is string => typeof x === 'string');
+        this.sql.exec(
+          `INSERT INTO plan (day, ids) VALUES (?, ?)
+           ON CONFLICT(day) DO UPDATE SET ids = excluded.ids`,
+          op.day,
+          JSON.stringify(ids),
+        );
+        return { messages: [{ t: 'plan', day: op.day, ids }], added: [] };
+      }
+
+      case 'pantrySet': {
+        if (op.on) this.sql.exec('INSERT OR IGNORE INTO pantry (name) VALUES (?)', op.name);
+        else this.sql.exec('DELETE FROM pantry WHERE name = ?', op.name);
+        return { messages: [{ t: 'pantry', name: op.name, on: op.on }], added: [] };
       }
     }
   }
@@ -502,6 +586,49 @@ export class HouseholdDO extends DurableObject<Env> {
         initial: r.initial,
         joinedAt: r.joined_at,
       }));
+  }
+
+  private allRecipes(): SyncRecipe[] {
+    return this.sql
+      .exec<{ data: string }>('SELECT data FROM recipes ORDER BY updated_at')
+      .toArray()
+      .map((r) => safeRecipe(r.data))
+      .filter((r): r is SyncRecipe => r !== null);
+  }
+
+  private planObj(): SyncPlan {
+    const out: SyncPlan = {};
+    for (const r of this.sql
+      .exec<{ day: string; ids: string }>('SELECT day, ids FROM plan')
+      .toArray()) {
+      out[r.day] = safeIds(r.ids);
+    }
+    return out;
+  }
+
+  private allPantry(): string[] {
+    return this.sql
+      .exec<{ name: string }>('SELECT name FROM pantry')
+      .toArray()
+      .map((r) => r.name);
+  }
+}
+
+function safeIds(json: string): string[] {
+  try {
+    const v: unknown = JSON.parse(json);
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function safeRecipe(json: string): SyncRecipe | null {
+  try {
+    const v: unknown = JSON.parse(json);
+    return v && typeof v === 'object' ? (v as SyncRecipe) : null;
+  } catch {
+    return null;
   }
 }
 

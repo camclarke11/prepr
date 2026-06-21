@@ -322,6 +322,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           dispatch({
             list: msg.items.map(toListItem),
             members: msg.members.map(toMember),
+            recipes: msg.recipes.map(ops.normalizeRecipe),
+            plan: ops.normalizePlan(msg.plan),
+            pantry: ops.normalizeStringArray(msg.pantry),
           });
           break;
         case 'item': {
@@ -343,6 +346,40 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           break;
         case 'members':
           dispatch({ members: msg.members.map(toMember) });
+          break;
+        case 'recipe': {
+          const recipe = ops.normalizeRecipe(msg.recipe);
+          dispatch((s) => {
+            const i = s.recipes.findIndex((r) => r.id === recipe.id);
+            const recipes = s.recipes.slice();
+            if (i >= 0) recipes[i] = recipe;
+            else recipes.push(recipe);
+            return { recipes };
+          });
+          break;
+        }
+        case 'recipeRemove':
+          dispatch((s) => ({
+            recipes: s.recipes.filter((r) => r.id !== msg.id),
+            plan: Object.fromEntries(
+              Object.entries(s.plan).map(([d, ids]) => [
+                d,
+                ids.filter((x) => x !== msg.id),
+              ]),
+            ) as AppState['plan'],
+          }));
+          break;
+        case 'plan':
+          dispatch((s) => ({ plan: { ...s.plan, [msg.day]: msg.ids } }));
+          break;
+        case 'pantry':
+          dispatch((s) => ({
+            pantry: msg.on
+              ? s.pantry.includes(msg.name)
+                ? s.pantry
+                : [...s.pantry, msg.name]
+              : s.pantry.filter((x) => x !== msg.name),
+          }));
           break;
         case 'pong':
           break;
@@ -554,12 +591,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }
       },
 
-      toggleFavorite: (id) =>
+      toggleFavorite: (id) => {
+        const r = stateRef.current.recipes.find((x) => x.id === id);
         dispatch((s) => ({
-          recipes: s.recipes.map((r) =>
-            r.id === id ? { ...r, favorite: !r.favorite } : r,
+          recipes: s.recipes.map((x) =>
+            x.id === id ? { ...x, favorite: !x.favorite } : x,
           ),
-        })),
+        }));
+        if (r)
+          sendOp({ kind: 'recipeUpsert', recipe: { ...r, favorite: !r.favorite } });
+      },
 
       deleteRecipe: (id) => {
         const r = stateRef.current.recipes.find((x) => x.id === id);
@@ -571,20 +612,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           openRecipe: s.openRecipe === id ? null : s.openRecipe,
         }));
         showToast(`Deleted “${r ? r.name : 'recipe'}”`);
+        sendOp({ kind: 'recipeDelete', id });
       },
 
       assignMeal: (day, id) => {
         if (!id) return;
-        dispatch((s) => ({
-          plan: ops.assignMeal(s.plan, day as keyof AppState['plan'], id),
-        }));
+        const key = day as keyof AppState['plan'];
+        const newPlan = ops.assignMeal(stateRef.current.plan, key, id);
+        dispatch({ plan: newPlan });
         const r = stateRef.current.recipes.find((x) => x.id === id);
         showToast(`${r ? r.name : 'Meal'} → ${day}`);
+        sendOp({ kind: 'planSet', day, ids: newPlan[key] });
       },
-      removeMeal: (day, index) =>
-        dispatch((s) => ({
-          plan: ops.removeMeal(s.plan, day as keyof AppState['plan'], index),
-        })),
+      removeMeal: (day, index) => {
+        const key = day as keyof AppState['plan'];
+        const newPlan = ops.removeMeal(stateRef.current.plan, key, index);
+        dispatch({ plan: newPlan });
+        sendOp({ kind: 'planSet', day, ids: newPlan[key] });
+      },
 
       addWeek: () => {
         const { list, count } = ops.addWeekToList(
@@ -629,8 +674,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }
       },
 
-      togglePantry: (name) =>
-        dispatch((s) => ({ pantry: ops.togglePantry(s.pantry, name) })),
+      togglePantry: (name) => {
+        const has = stateRef.current.pantry.includes(name);
+        dispatch((s) => ({ pantry: ops.togglePantry(s.pantry, name) }));
+        sendOp({ kind: 'pantrySet', name, on: !has });
+      },
 
       setActiveMember: (name) => dispatch({ activeMember: name }),
 
@@ -792,6 +840,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           }));
           showToast(`Saved “${recipe.name}”`);
         }
+        sendOp({ kind: 'recipeUpsert', recipe });
       },
 
       showToast,
@@ -913,7 +962,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       createHousehold: async (name) => {
         try {
           const res = await sync.createHousehold(name);
-          const local = stateRef.current.list;
+          const s = stateRef.current;
           dispatch({
             household: {
               id: res.householdId,
@@ -925,9 +974,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             membersOpen: false,
             pendingJoin: null,
           });
-          // Seed the new shared list with whatever was on this device — the
-          // connect effect flushes these once the WebSocket is up.
-          seedRef.current = local.map((it) => ({
+          // Seed the new household with everything on this device — the connect
+          // effect flushes these once the WebSocket is up.
+          const seed: Op[] = s.list.map((it) => ({
             kind: 'upsert' as const,
             name: it.name,
             emoji: it.emoji,
@@ -936,6 +985,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             qty: it.qty,
             spec: it.spec,
           }));
+          for (const r of s.recipes) seed.push({ kind: 'recipeUpsert', recipe: r });
+          for (const [day, ids] of Object.entries(s.plan)) {
+            if (ids.length) seed.push({ kind: 'planSet', day, ids });
+          }
+          for (const name of s.pantry) seed.push({ kind: 'pantrySet', name, on: true });
+          seedRef.current = seed;
           showToast('Shared list created');
         } catch {
           showToast('Could not create the shared list');
@@ -950,6 +1005,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             members: res.members.map(toMember),
             activeMember: res.member.name,
             list: res.items.map(toListItem),
+            recipes: res.recipes.map(ops.normalizeRecipe),
+            plan: ops.normalizePlan(res.plan),
+            pantry: ops.normalizeStringArray(res.pantry),
             membersOpen: false,
             pendingJoin: null,
           });
