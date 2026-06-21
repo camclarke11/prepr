@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { StoreProvider, useStore } from './store';
+import { StoreProvider, useStore, STORAGE_KEY } from './store';
 
 const wrapper = ({ children }: { children: ReactNode }) => (
   <StoreProvider>{children}</StoreProvider>
@@ -117,7 +117,7 @@ describe('store', () => {
   it('persists state changes to localStorage', () => {
     const { result } = setup();
     act(() => result.current.actions.addCatalog('apples'));
-    const saved = JSON.parse(localStorage.getItem('prepr.v2') || '{}');
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
     expect(saved.list.some((x: { name: string }) => x.name === 'Apples')).toBe(true);
   });
 
@@ -131,6 +131,18 @@ describe('store', () => {
     expect(result.current.state.members).toHaveLength(1);
     expect(result.current.state.members[0].name).toBe('Zed');
     expect(result.current.state.activeMember).toBe('Zed');
+  });
+
+  it('starts on an empty clean slate with the welcome on a fresh install', () => {
+    localStorage.clear();
+    const { result } = setup();
+    expect(result.current.state.list).toHaveLength(0);
+    expect(result.current.state.recipes).toHaveLength(0);
+    expect(Object.values(result.current.state.plan).flat()).toHaveLength(0);
+    expect(result.current.state.pantry).toHaveLength(0);
+    expect(result.current.state.members.map((m) => m.name)).toEqual(['You']);
+    expect(result.current.state.welcomeOpen).toBe(true);
+    expect(result.current.state.household).toBeNull();
   });
 
   it('creates a household and switches into shared mode', async () => {

@@ -1,6 +1,35 @@
 import '@testing-library/jest-dom/vitest';
-import { afterEach, vi } from 'vitest';
+import { afterEach, beforeEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
+import { STORAGE_KEY, WELCOME_KEY } from '../state/store';
+import {
+  seedList,
+  seedPlan,
+  SEED_RECIPES,
+  SEED_PANTRY,
+  SEED_RECENTS,
+} from '../data/seed';
+import { SAMPLE_MEMBERS } from '../theme';
+
+beforeEach(() => {
+  // Production now starts on an empty clean slate; the suite runs against the
+  // sample dataset, seeded here so makeInitialState loads it. The welcome flag
+  // is pre-set so the first-run tutorial doesn't overlay every test.
+  localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({
+      list: seedList(),
+      recipes: SEED_RECIPES,
+      plan: seedPlan(),
+      pantry: SEED_PANTRY,
+      recents: SEED_RECENTS,
+      members: SAMPLE_MEMBERS,
+      activeMember: 'You',
+      theme: 'light',
+    }),
+  );
+  localStorage.setItem(WELCOME_KEY, '1');
+});
 
 afterEach(() => {
   cleanup();

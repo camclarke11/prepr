@@ -15,7 +15,13 @@ export const CATEGORIES: Category[] = [
 
 export const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
 
+// A fresh install starts solo — just you. (Sample data uses SAMPLE_MEMBERS.)
 export const DEFAULT_MEMBERS: Member[] = [
+  { name: 'You', initial: 'Y', color: '#3f7a4f' },
+];
+
+/** The two-person roster used by the "Reset to sample" demo + tests. */
+export const SAMPLE_MEMBERS: Member[] = [
   { name: 'You', initial: 'Y', color: '#3f7a4f' },
   { name: 'Sam', initial: 'S', color: '#b35e54' },
 ];
