@@ -192,6 +192,10 @@ export interface SmartItem {
   product: FoodProduct | null;
   query: string;
   candidates: FoodProduct[];
+  /** Estimated UK own-brand price (GBP) for one pack covering the need, or null. */
+  price: number | null;
+  /** The pack size that estimate assumes, e.g. "400g", "1L". */
+  pack: string;
 }
 
 /** Build a tailored, store-ready shopping list (AI + Open Food Facts). */

@@ -15,6 +15,7 @@ export function ShoppingListView() {
   const p = usePalette();
   const mobile = useIsMobile();
   const { list, search, recents, flash } = state;
+  const planHasMeals = Object.values(state.plan).some((ids) => ids.length > 0);
 
   const q = search.trim().toLowerCase();
   const listQty = (name: string) => list.find((x) => x.name === name)?.qty ?? 0;
@@ -120,7 +121,7 @@ export function ShoppingListView() {
           >
             Tap a tile when it’s in your cart
           </span>
-          {list.length > 0 && (
+          {(list.length > 0 || planHasMeals) && (
             <button
               onClick={() => setSmartOpen(true)}
               className="pr-press"
@@ -135,7 +136,7 @@ export function ShoppingListView() {
                 cursor: 'pointer',
               }}
             >
-              ✨ Smart list
+              ✨ Smart shop
             </button>
           )}
           {list.length > 0 && (
