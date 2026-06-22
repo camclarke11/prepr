@@ -4,6 +4,8 @@
 export interface FoodProduct {
   name: string;
   brand: string;
+  /** GTIN/EAN barcode — lets a store search land on the exact product. */
+  barcode: string;
   kcal: number | null;
   protein: number | null;
   carbs: number | null;
@@ -52,6 +54,7 @@ export async function searchFood(query: string): Promise<FoodProduct[]> {
     out.push({
       name: name.slice(0, 80),
       brand: str(o.brands).split(',')[0].trim().slice(0, 40),
+      barcode: str(o.code).trim().slice(0, 20),
       kcal: num(n['energy-kcal_100g']),
       protein: num(n['proteins_100g']),
       carbs: num(n['carbohydrates_100g']),
