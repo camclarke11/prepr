@@ -12,18 +12,26 @@ export interface SmartItem {
   query: string;
   /** Other matches, so the client can let the user swap. */
   candidates: FoodProduct[];
+  /** Estimated UK own-brand price (GBP) for one pack covering the need, or null. */
+  price: number | null;
+  /** The pack size that estimate assumes, e.g. "400g", "1L", "6 pack". */
+  pack: string;
 }
 
 const MODEL = '@cf/meta/llama-3.1-8b-instruct-fast';
 
 const SYSTEM = [
-  'You help turn a rough grocery list into a precise supermarket shopping list.',
-  'For each item you get candidate products (with an index "ci"). Return STRICT JSON:',
-  '{"picks":[{"i":<item index>,"choice":<best ci, or -1 if none fit>,"query":<search term>}]}.',
-  'choice = the candidate a typical UK shopper would actually buy (prefer plain, common,',
-  'everyday versions; avoid flavoured/novelty/foreign unless the item clearly implies it).',
-  'query = a short, specific supermarket search term for the item (2–4 words, e.g.',
-  '"milk" -> "semi skimmed milk", "chicken" -> "chicken breast fillets"). One pick per item.',
+  'You turn a rough grocery list into a precise UK supermarket shopping list.',
+  'For each item you get its needed quantity and candidate products (each with an index "ci").',
+  'Return STRICT JSON: {"picks":[{"i":<item index>,"choice":<best ci, or -1 if none fit>,',
+  '"query":<search term>,"price":<number>,"pack":<size>}]}.',
+  'choice = the product a typical UK shopper would actually buy (prefer plain, common,',
+  'own-brand everyday versions; avoid flavoured/novelty/foreign unless the item clearly implies it).',
+  'query = a short, specific supermarket search term (2–4 words, e.g.',
+  '"milk" -> "semi skimmed milk", "chicken" -> "chicken breast fillets").',
+  'price = your best estimate of the typical UK own-brand price in GBP for ONE pack that covers',
+  'the needed amount — a plain number like 0.85 or 2.50 (no currency symbol).',
+  'pack = the size of that pack, e.g. "400g", "1L", "6 pack". One pick per item.',
 ].join(' ');
 
 const PICKS_SCHEMA = {
@@ -37,8 +45,10 @@ const PICKS_SCHEMA = {
           i: { type: 'number' },
           choice: { type: 'number' },
           query: { type: 'string' },
+          price: { type: 'number' },
+          pack: { type: 'string' },
         },
-        required: ['i', 'choice', 'query'],
+        required: ['i', 'choice', 'query', 'price', 'pack'],
       },
     },
   },
@@ -49,6 +59,8 @@ interface Pick {
   i: number;
   choice: number;
   query: string;
+  price: number | null;
+  pack: string;
 }
 
 export async function buildSmartList(
@@ -63,10 +75,12 @@ export async function buildSmartList(
     capped.map((it) => searchFood(it.name).catch(() => [] as FoodProduct[])),
   );
 
-  // One AI pass: pick the best candidate + a clean search term per item.
+  // One AI pass: pick the best candidate, a clean search term, and an estimated
+  // price + pack per item. We pass the needed qty/unit so it can size the pack.
   const aiInput = capped.map((it, i) => ({
     i,
     item: it.name,
+    need: [it.qty, it.unit].filter(Boolean).join(' ') || undefined,
     options: candidatesList[i]
       .slice(0, 5)
       .map((c, ci) => ({ ci, name: c.name, brand: c.brand })),
@@ -98,7 +112,16 @@ export async function buildSmartList(
     const query = (pick?.query || product?.name || it.name).trim().slice(0, 60);
     // Surface the chosen product first so the client shows it by default.
     const ordered = product ? [product, ...cands.filter((_, ci) => ci !== choice)] : cands;
-    return { name: it.name, qty: it.qty, unit: it.unit, product, query, candidates: ordered };
+    return {
+      name: it.name,
+      qty: it.qty,
+      unit: it.unit,
+      product,
+      query,
+      candidates: ordered,
+      price: pick?.price ?? null,
+      pack: pick?.pack ?? '',
+    };
   });
 }
 
@@ -122,5 +145,15 @@ function normalizePicks(resp: unknown): Pick[] {
       i: typeof p.i === 'number' ? p.i : -1,
       choice: typeof p.choice === 'number' ? p.choice : -1,
       query: typeof p.query === 'string' ? p.query : '',
+      price: cleanPrice(p.price),
+      pack: typeof p.pack === 'string' ? p.pack.trim().slice(0, 24) : '',
     }));
+}
+
+// A model price estimate is only useful inside a sane range — clamp it and drop
+// anything outside (a stray 0 or a hallucinated 9999) rather than show nonsense.
+function cleanPrice(v: unknown): number | null {
+  if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0) return null;
+  if (v > 40) return null;
+  return Math.round(v * 100) / 100;
 }
