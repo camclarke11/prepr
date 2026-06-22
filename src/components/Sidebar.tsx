@@ -1,14 +1,7 @@
 import { useStore } from '../state/store';
 import { usePalette } from '../hooks';
 import { navItemStyle } from './nav';
-import {
-  ListIcon,
-  RecipesIcon,
-  PlanIcon,
-  PantryIcon,
-  MoonIcon,
-  SunIcon,
-} from './icons';
+import { ListIcon, RecipesIcon, PlanIcon, PantryIcon, GearIcon } from './icons';
 import type { Tab } from '../types';
 
 export function Sidebar() {
@@ -201,7 +194,7 @@ export function Sidebar() {
         </div>
 
         <button
-          onClick={actions.toggleTheme}
+          onClick={actions.openSettings}
           className="pr-press"
           style={{
             marginTop: 12,
@@ -219,8 +212,8 @@ export function Sidebar() {
             cursor: 'pointer',
           }}
         >
-          {state.theme === 'dark' ? <SunIcon size={17} /> : <MoonIcon size={17} />}
-          <span>{state.theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
+          <GearIcon size={17} />
+          <span>Settings</span>
         </button>
 
         <div
