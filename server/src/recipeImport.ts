@@ -234,6 +234,19 @@ function humanizeDuration(v: string): string {
   return [h ? `${h} hr` : '', min ? `${min} min` : ''].filter(Boolean).join(' ');
 }
 
+/** Decode the HTML entities that JSON-LD text often carries (&#39; etc.). */
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(parseInt(d, 10)))
+    .replace(/&quot;/g, '"')
+    .replace(/&(?:#39|apos);/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&');
+}
+
 /** Strip a full HTML page down to readable text (fallback when no JSON-LD). */
 function cleanText(html: string): string {
   return html
@@ -299,12 +312,12 @@ function toDraftFromRaw(raw: RawRecipe): ImportedRecipe | null {
             qty = mm[1].trim();
             unit = unit || mm[2];
           }
-          return { name: str(o.name).trim(), qty, unit };
+          return { name: decodeEntities(str(o.name)).trim(), qty, unit };
         })
         .filter((i) => i.name)
     : [];
   const steps = Array.isArray(raw.steps)
-    ? raw.steps.map((s) => str(s).trim()).filter(Boolean)
+    ? raw.steps.map((s) => decodeEntities(str(s)).trim()).filter(Boolean)
     : [];
   const servings =
     typeof raw.servings === 'number' && Number.isFinite(raw.servings)
@@ -314,7 +327,7 @@ function toDraftFromRaw(raw: RawRecipe): ImportedRecipe | null {
   const emojiMatch = str(raw.emoji).match(/\p{Extended_Pictographic}/u);
   return {
     emoji: emojiMatch ? emojiMatch[0] : '',
-    name: str(raw.name).trim().slice(0, 80),
+    name: decodeEntities(str(raw.name)).trim().slice(0, 80),
     servings,
     time: humanizeDuration(str(raw.time).trim()).slice(0, 24),
     ingredients,
