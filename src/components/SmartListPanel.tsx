@@ -230,10 +230,15 @@ export function SmartListPanel({ onClose }: { onClose: () => void }) {
                             <button
                               onClick={() =>
                                 window.open(
-                                  sm.searchUrl(query),
+                                  sm.searchUrl(c?.barcode || query),
                                   '_blank',
                                   'noopener,noreferrer',
                                 )
+                              }
+                              title={
+                                c?.barcode
+                                  ? `Open the exact product at ${sm.name}`
+                                  : `Search ${sm.name} for ${query}`
                               }
                               className="pr-press"
                               style={{
@@ -248,7 +253,7 @@ export function SmartListPanel({ onClose }: { onClose: () => void }) {
                                 whiteSpace: 'nowrap',
                               }}
                             >
-                              Open ↗
+                              {c?.barcode ? 'Open ↗' : 'Search ↗'}
                             </button>
                           )}
                         </div>

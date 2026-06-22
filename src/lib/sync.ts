@@ -162,6 +162,7 @@ export async function fetchVapidPublicKey(): Promise<string | null> {
 export interface FoodProduct {
   name: string;
   brand: string;
+  barcode: string;
   kcal: number | null;
   protein: number | null;
   carbs: number | null;
