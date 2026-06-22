@@ -72,6 +72,11 @@ export function SmartListPanel({ onClose }: { onClose: () => void }) {
     return r.candidates[swap[idx] ?? 0] ?? r.product;
   };
 
+  // Only trust a barcode for an exact-product link when it's a full GTIN
+  // (UPC-A/EAN-13/14). Short codes and produce PLUs (e.g. "4068") just dead-end
+  // at a store, so those fall back to a clean search instead.
+  const isGtin = (bc?: string) => !!bc && /^\d{12,14}$/.test(bc);
+
   const indexOf = new Map(toBuy.map((l, i) => [l.key, i]));
   const groups = CATEGORIES.map((cat) => ({
     cat,
@@ -349,13 +354,13 @@ export function SmartListPanel({ onClose }: { onClose: () => void }) {
                             <button
                               onClick={() =>
                                 window.open(
-                                  sm.searchUrl(c?.barcode || query),
+                                  sm.searchUrl(isGtin(c?.barcode) ? c!.barcode : query),
                                   '_blank',
                                   'noopener,noreferrer',
                                 )
                               }
                               title={
-                                c?.barcode
+                                isGtin(c?.barcode)
                                   ? `Open the exact product at ${sm.name}`
                                   : `Search ${sm.name} for ${query}`
                               }
@@ -373,7 +378,7 @@ export function SmartListPanel({ onClose }: { onClose: () => void }) {
                                 flex: 'none',
                               }}
                             >
-                              {c?.barcode ? 'Open ↗' : 'Search ↗'}
+                              {isGtin(c?.barcode) ? 'Open ↗' : 'Search ↗'}
                             </button>
                           )}
                         </div>

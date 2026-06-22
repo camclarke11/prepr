@@ -1,4 +1,5 @@
 import type { Env } from './env';
+import { runJson } from './ai';
 
 /** A recipe draft in the exact shape the frontend's RecipeDraft expects. */
 export interface ImportedRecipe {
@@ -10,8 +11,6 @@ export interface ImportedRecipe {
   stepsText: string;
 }
 
-const MODEL = '@cf/meta/llama-3.1-8b-instruct-fast';
-
 // A real browser UA — many recipe sites 404/403 a generic bot.
 const BROWSER_UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
@@ -20,8 +19,10 @@ const SYSTEM = [
   'You turn recipe data from a webpage into STRICT JSON only — no markdown, no prose.',
   'Schema: {"emoji": string, "name": string, "servings": number, "time": string,',
   '"ingredients": [{"qty": string, "unit": string, "name": string}], "steps": [string]}.',
-  'Split EVERY ingredient line into qty (e.g. "2", "1/2", ""), unit (e.g. "cup", "g", "tbsp", "")',
-  'and a short name with no quantity in it. Keep ALL ingredients and ALL steps.',
+  'Split EVERY ingredient line into qty = ONLY the number or fraction (e.g. "2", "1/2", "") with',
+  'NO unit word in it, unit (e.g. "cup", "g", "tbsp", "tsp", "") and a short name with no quantity.',
+  'Example: "1/4 teaspoon ground ginger" -> {"qty":"1/4","unit":"tsp","name":"ground ginger"}.',
+  'Keep ALL ingredients and ALL steps.',
   'emoji = one emoji that best represents the finished dish (never a flag or random emoji).',
   'time = a short human string like "30 min" or "1 hr 15 min" ("" if unknown). Do not invent.',
 ].join(' ');
@@ -122,16 +123,13 @@ async function runModel(
 ): Promise<{ draft?: ImportedRecipe; error?: string }> {
   let resp: unknown;
   try {
-    const out = (await env.AI.run(MODEL, {
-      messages: [
-        { role: 'system', content: SYSTEM },
-        { role: 'user', content: `Recipe data:\n${content.slice(0, 12000)}` },
-      ],
-      max_tokens: 2048,
+    resp = await runJson(env, {
+      system: SYSTEM,
+      user: `Recipe data:\n${content.slice(0, 12000)}`,
+      schema: DRAFT_SCHEMA,
+      maxTokens: 2048,
       temperature: 0.2,
-      response_format: { type: 'json_schema', json_schema: DRAFT_SCHEMA },
-    } as Parameters<typeof env.AI.run>[1])) as { response?: unknown };
-    resp = out.response;
+    });
   } catch {
     return { error: 'The importer is unavailable right now.' };
   }
