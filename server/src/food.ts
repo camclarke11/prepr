@@ -19,11 +19,53 @@ export interface FoodProduct {
 // Open Food Facts "Search-a-licious" — the API-grade full-text search service.
 const OFF = 'https://search.openfoodfacts.org/search';
 
+// Common US recipe terms → the word a UK shopper (and UK shelves) actually use,
+// so the OFF search lands on real UK products instead of American imports.
+const US_TO_UK: Record<string, string> = {
+  'ground beef': 'beef mince',
+  'ground pork': 'pork mince',
+  'ground turkey': 'turkey mince',
+  'ground lamb': 'lamb mince',
+  'green onion': 'spring onion',
+  'green onions': 'spring onions',
+  scallion: 'spring onion',
+  scallions: 'spring onions',
+  cilantro: 'coriander',
+  eggplant: 'aubergine',
+  zucchini: 'courgette',
+  'all purpose flour': 'plain flour',
+  'all-purpose flour': 'plain flour',
+  'confectioners sugar': 'icing sugar',
+  'powdered sugar': 'icing sugar',
+  'heavy cream': 'double cream',
+  'heavy whipping cream': 'double cream',
+  shrimp: 'prawns',
+  arugula: 'rocket',
+  'garbanzo beans': 'chickpeas',
+  'baking soda': 'bicarbonate of soda',
+  'superfine sugar': 'caster sugar',
+  'corn starch': 'cornflour',
+  cornstarch: 'cornflour',
+};
+
+/** Rewrite a search term into UK supermarket vocabulary. */
+export function ukTerm(name: string): string {
+  let s = name.toLowerCase().trim();
+  if (US_TO_UK[s]) return US_TO_UK[s];
+  for (const [us, uk] of Object.entries(US_TO_UK)) {
+    if (s.includes(us)) s = s.replace(us, uk);
+  }
+  return s;
+}
+
 export async function searchFood(query: string): Promise<FoodProduct[]> {
-  const q = query.trim();
+  const q = ukTerm(query.trim());
   if (!q) return [];
+  // Constrain to products sold in the UK so the matches (and their barcodes)
+  // map to UK shelves rather than US/global imports.
+  const full = `${q} countries_tags:"en:united-kingdom"`;
   const url =
-    `${OFF}?q=${encodeURIComponent(q)}&page_size=6` +
+    `${OFF}?q=${encodeURIComponent(full)}&page_size=6` +
     '&fields=product_name,brands,nutriments,serving_size,image_small_url,code';
   let data: { hits?: unknown[] };
   try {

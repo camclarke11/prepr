@@ -1,5 +1,6 @@
 import type { Env } from './env';
-import { searchFood, type FoodProduct } from './food';
+import { searchFood, ukTerm, type FoodProduct } from './food';
+import { runJson } from './ai';
 
 /** One item of the tailored shopping list. */
 export interface SmartItem {
@@ -18,17 +19,16 @@ export interface SmartItem {
   pack: string;
 }
 
-const MODEL = '@cf/meta/llama-3.1-8b-instruct-fast';
-
 const SYSTEM = [
   'You turn a rough grocery list into a precise UK supermarket shopping list.',
   'For each item you get its needed quantity and candidate products (each with an index "ci").',
   'Return STRICT JSON: {"picks":[{"i":<item index>,"choice":<best ci, or -1 if none fit>,',
   '"query":<search term>,"price":<number>,"pack":<size>}]}.',
-  'choice = the product a typical UK shopper would actually buy (prefer plain, common,',
-  'own-brand everyday versions; avoid flavoured/novelty/foreign unless the item clearly implies it).',
-  'query = a short, specific supermarket search term (2–4 words, e.g.',
-  '"milk" -> "semi skimmed milk", "chicken" -> "chicken breast fillets").',
+  'choice = the candidate a UK shopper would actually buy for this item (prefer plain, common,',
+  'everyday own-brand versions). Set choice to -1 when NONE of the candidates is really this',
+  'item (e.g. the candidates are unrelated or a different product) — do not force a wrong match.',
+  'query = a short, specific UK supermarket search term in British English (2–4 words, e.g.',
+  '"milk" -> "semi skimmed milk", "ground beef" -> "beef mince", "green onions" -> "spring onions").',
   'price = your best estimate of the typical UK own-brand price in GBP for ONE pack that covers',
   'the needed amount — a plain number like 0.85 or 2.50 (no currency symbol).',
   'pack = the size of that pack, e.g. "400g", "1L", "6 pack". One pick per item.',
@@ -88,16 +88,14 @@ export async function buildSmartList(
 
   let picks: Pick[] = [];
   try {
-    const out = (await env.AI.run(MODEL, {
-      messages: [
-        { role: 'system', content: SYSTEM },
-        { role: 'user', content: JSON.stringify(aiInput).slice(0, 9000) },
-      ],
-      max_tokens: 1500,
+    const resp = await runJson(env, {
+      system: SYSTEM,
+      user: JSON.stringify(aiInput).slice(0, 9000),
+      schema: PICKS_SCHEMA,
+      maxTokens: 1500,
       temperature: 0.1,
-      response_format: { type: 'json_schema', json_schema: PICKS_SCHEMA },
-    } as Parameters<typeof env.AI.run>[1])) as { response?: unknown };
-    picks = normalizePicks(out.response);
+    });
+    picks = normalizePicks(resp);
   } catch {
     picks = [];
   }
@@ -106,12 +104,20 @@ export async function buildSmartList(
   return capped.map((it, i) => {
     const cands = candidatesList[i];
     const pick = byIndex.get(i);
-    const choice =
-      pick && pick.choice >= 0 && pick.choice < cands.length ? pick.choice : 0;
-    const product = cands[choice] ?? null;
-    const query = (pick?.query || product?.name || it.name).trim().slice(0, 60);
-    // Surface the chosen product first so the client shows it by default.
-    const ordered = product ? [product, ...cands.filter((_, ci) => ci !== choice)] : cands;
+    let product: FoodProduct | null = null;
+    let ordered: FoodProduct[] = [];
+    if (pick) {
+      // Respect an explicit "none fit" (-1): show no product, just a search.
+      if (pick.choice >= 0 && pick.choice < cands.length) {
+        product = cands[pick.choice];
+        ordered = [product, ...cands.filter((_, ci) => ci !== pick.choice)];
+      }
+    } else if (cands.length) {
+      // No pick at all (AI failed) — best-effort: default to the top candidate.
+      product = cands[0];
+      ordered = cands;
+    }
+    const query = (pick?.query || product?.name || ukTerm(it.name)).trim().slice(0, 60);
     return {
       name: it.name,
       qty: it.qty,
