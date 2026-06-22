@@ -3,6 +3,7 @@ import { useStore } from '../state/store';
 import { usePalette } from '../hooks';
 import { Modal } from './Modal';
 import { importRecipeFromUrl } from '../lib/sync';
+import { suggestEmoji } from '../data/emoji';
 
 export function CreateRecipe() {
   const { state, actions } = useStore();
@@ -20,7 +21,10 @@ export function CreateRecipe() {
     const { draft: imported, error } = await importRecipeFromUrl(url);
     setImporting(false);
     if (imported) {
-      actions.loadRecipeDraft(imported);
+      // Prefer our own food-emoji match on the recipe name (the AI's pick is
+      // sometimes off); fall back to whatever it returned.
+      const suggested = suggestEmoji(imported.name)[0]?.emoji;
+      actions.loadRecipeDraft({ ...imported, emoji: suggested || imported.emoji });
       setImportUrl('');
       actions.showToast('Imported — review and save', { dur: 3 });
     } else {

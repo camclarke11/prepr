@@ -12,6 +12,20 @@ export interface ImportedRecipe {
 
 const MODEL = '@cf/meta/llama-3.1-8b-instruct-fast';
 
+// A real browser UA — many recipe sites 404/403 a generic bot.
+const BROWSER_UA =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+
+const SYSTEM = [
+  'You turn recipe data from a webpage into STRICT JSON only — no markdown, no prose.',
+  'Schema: {"emoji": string, "name": string, "servings": number, "time": string,',
+  '"ingredients": [{"qty": string, "unit": string, "name": string}], "steps": [string]}.',
+  'Split EVERY ingredient line into qty (e.g. "2", "1/2", ""), unit (e.g. "cup", "g", "tbsp", "")',
+  'and a short name with no quantity in it. Keep ALL ingredients and ALL steps.',
+  'emoji = one emoji that best represents the finished dish (never a flag or random emoji).',
+  'time = a short human string like "30 min" or "1 hr 15 min" ("" if unknown). Do not invent.',
+].join(' ');
+
 const DRAFT_SCHEMA = {
   type: 'object',
   properties: {
@@ -36,17 +50,6 @@ const DRAFT_SCHEMA = {
   required: ['emoji', 'name', 'servings', 'time', 'ingredients', 'steps'],
 };
 
-const SYSTEM = [
-  'You extract a single recipe from webpage content and return STRICT JSON only.',
-  'No markdown, no code fences, no commentary — just one JSON object.',
-  'Schema: {"emoji": string, "name": string, "servings": number, "time": string,',
-  '"ingredients": [{"qty": string, "unit": string, "name": string}], "steps": [string]}.',
-  'emoji is a single emoji for the dish. time is like "30 min" or "" if unknown.',
-  'Split each ingredient into qty (e.g. "2", "1/2", ""), unit (e.g. "cup", "g", "") and a',
-  'short name with no quantity in it. steps is an ordered list of instruction sentences.',
-  'Use "" or [] for anything missing. Do not invent ingredients or steps.',
-].join(' ');
-
 /** Pull recipe content from a URL and normalise it into our draft via the LLM. */
 export async function importRecipe(
   url: string,
@@ -66,19 +69,27 @@ export async function importRecipe(
   try {
     const res = await fetch(parsed.toString(), {
       headers: {
-        'User-Agent': 'preprbot/1.0 (+https://prepr.camlc.dev)',
-        Accept: 'text/html,application/xhtml+xml',
+        'User-Agent': BROWSER_UA,
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-GB,en;q=0.9',
       },
       redirect: 'follow',
     });
     if (!res.ok) return { error: `Couldn’t fetch that page (${res.status}).` };
-    html = (await res.text()).slice(0, 400_000);
+    html = (await res.text()).slice(0, 600_000);
   } catch {
     return { error: 'Couldn’t reach that page.' };
   }
 
-  // Prefer the page's schema.org Recipe JSON-LD; fall back to cleaned text.
-  const content = extractRecipeJsonLd(html) ?? cleanText(html);
+  // Prefer the page's schema.org Recipe JSON-LD (compacted), else cleaned text.
+  const title = pageTitle(html);
+  let recipe = pickBestRecipe(html, title);
+  // Guard against pages that embed an unrelated recipe in their JSON-LD: if the
+  // chosen recipe's name shares nothing with the page title, read the article.
+  if (recipe && !nameMatchesTitle(recipe, title)) recipe = null;
+  const content = recipe
+    ? JSON.stringify(compactRecipe(recipe))
+    : cleanText(html).slice(0, 8000);
   if (!content.trim()) return { error: 'No readable recipe found on that page.' };
 
   let resp: unknown;
@@ -86,12 +97,10 @@ export async function importRecipe(
     const out = (await env.AI.run(MODEL, {
       messages: [
         { role: 'system', content: SYSTEM },
-        { role: 'user', content: content.slice(0, 8000) },
+        { role: 'user', content: `Recipe data:\n${content.slice(0, 9000)}` },
       ],
-      max_tokens: 1024,
+      max_tokens: 2048,
       temperature: 0.2,
-      // Constrain the model to valid JSON in our exact shape (LLMs otherwise
-      // emit subtly-broken JSON that fails to parse).
       response_format: { type: 'json_schema', json_schema: DRAFT_SCHEMA },
     } as Parameters<typeof env.AI.run>[1])) as { response?: unknown };
     resp = out.response;
@@ -99,7 +108,6 @@ export async function importRecipe(
     return { error: 'The importer is unavailable right now.' };
   }
 
-  // With json_schema the response is usually already an object; tolerate a string.
   const draft =
     resp && typeof resp === 'object'
       ? toDraftFromRaw(resp as RawRecipe)
@@ -112,41 +120,121 @@ export async function importRecipe(
   return { draft };
 }
 
-/** Find a schema.org Recipe object inside <script type="application/ld+json">. */
-function extractRecipeJsonLd(html: string): string | null {
+// --- JSON-LD extraction ------------------------------------------------------
+
+type Obj = Record<string, unknown>;
+
+/** All schema.org Recipe objects across every ld+json block (incl. @graph). */
+function collectRecipes(html: string): Obj[] {
+  const out: Obj[] = [];
   const re = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
   let m: RegExpExecArray | null;
   while ((m = re.exec(html))) {
-    let data: unknown;
     try {
-      data = JSON.parse(m[1].trim());
+      walk(JSON.parse(m[1].trim()), out);
     } catch {
-      continue;
+      /* skip malformed block */
     }
-    const recipe = findRecipe(data);
-    if (recipe) return JSON.stringify(recipe).slice(0, 8000);
   }
-  return null;
+  return out;
 }
 
-function findRecipe(node: unknown): unknown | null {
-  if (!node || typeof node !== 'object') return null;
+function walk(node: unknown, out: Obj[]): void {
+  if (!node || typeof node !== 'object') return;
   if (Array.isArray(node)) {
-    for (const item of node) {
-      const found = findRecipe(item);
-      if (found) return found;
-    }
-    return null;
+    for (const n of node) walk(n, out);
+    return;
   }
-  const obj = node as Record<string, unknown>;
-  const type = obj['@type'];
-  const isRecipe = type === 'Recipe' || (Array.isArray(type) && type.includes('Recipe'));
-  if (isRecipe) return obj;
-  if (obj['@graph']) return findRecipe(obj['@graph']);
-  return null;
+  const o = node as Obj;
+  const t = o['@type'];
+  if (t === 'Recipe' || (Array.isArray(t) && t.includes('Recipe'))) out.push(o);
+  if (o['@graph']) walk(o['@graph'], out);
 }
 
-/** Strip a full HTML page down to readable text. */
+/** Pick the recipe that best matches the page (title match, then most ingredients). */
+function pickBestRecipe(html: string, title: string): Obj | null {
+  const recipes = collectRecipes(html);
+  if (recipes.length <= 1) return recipes[0] ?? null;
+  const t = title.toLowerCase();
+  let best = recipes[0];
+  let bestScore = -1;
+  for (const r of recipes) {
+    const name = typeof r.name === 'string' ? r.name.toLowerCase() : '';
+    const ings = Array.isArray(r.recipeIngredient) ? r.recipeIngredient.length : 0;
+    let score = ings;
+    if (name && t && (t.includes(name) || name.includes(t.split('|')[0].trim())))
+      score += 100;
+    if (score > bestScore) {
+      bestScore = score;
+      best = r;
+    }
+  }
+  return best;
+}
+
+/** Reduce a JSON-LD Recipe to just what the model needs. */
+function compactRecipe(r: Obj): {
+  name: string;
+  servings: string;
+  time: string;
+  ingredients: string[];
+  instructions: string[];
+} {
+  const str = (v: unknown): string => (typeof v === 'string' ? v : '');
+  const yieldRaw = Array.isArray(r.recipeYield) ? r.recipeYield[0] : r.recipeYield;
+  const servings =
+    typeof yieldRaw === 'number' ? String(yieldRaw) : str(yieldRaw).trim();
+  const time = humanizeDuration(
+    str(r.totalTime) || str(r.cookTime) || str(r.prepTime),
+  );
+  const ingredients = Array.isArray(r.recipeIngredient)
+    ? r.recipeIngredient.map(str).filter(Boolean)
+    : [];
+  return {
+    name: str(r.name).trim(),
+    servings,
+    time,
+    ingredients,
+    instructions: flattenInstructions(r.recipeInstructions),
+  };
+}
+
+function flattenInstructions(ri: unknown): string[] {
+  if (typeof ri === 'string') return [ri];
+  if (!Array.isArray(ri)) return [];
+  const out: string[] = [];
+  for (const x of ri) {
+    if (typeof x === 'string') {
+      out.push(x);
+    } else if (x && typeof x === 'object') {
+      const o = x as Obj;
+      if (o['@type'] === 'HowToSection' && Array.isArray(o.itemListElement)) {
+        for (const s of o.itemListElement) {
+          const so = (s ?? {}) as Obj;
+          if (typeof so.text === 'string') out.push(so.text);
+        }
+      } else if (typeof o.text === 'string') {
+        out.push(o.text);
+      } else if (typeof o.name === 'string') {
+        out.push(o.name);
+      }
+    }
+  }
+  return out;
+}
+
+/** ISO-8601 duration (PT1H15M) -> "1 hr 15 min". Passes through human strings. */
+function humanizeDuration(v: string): string {
+  const m = /^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec((v || '').trim());
+  if (!m) return v || '';
+  const total = (m[1] ? +m[1] : 0) * 60 + (m[2] ? +m[2] : 0);
+  if (!total) return '';
+  const h = Math.floor(total / 60);
+  const min = total % 60;
+  return [h ? `${h} hr` : '', min ? `${min} min` : ''].filter(Boolean).join(' ');
+}
+
+/** Strip a full HTML page down to readable text (fallback when no JSON-LD). */
 function cleanText(html: string): string {
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
@@ -158,6 +246,24 @@ function cleanText(html: string): string {
     .trim();
 }
 
+/** Does the recipe name share a meaningful word with the page title? */
+function nameMatchesTitle(recipe: Obj, title: string): boolean {
+  const name = typeof recipe.name === 'string' ? recipe.name.toLowerCase() : '';
+  const t = title.toLowerCase();
+  if (!name || !t) return true; // can't judge — keep it
+  const words = name.split(/[^a-z0-9]+/).filter((w) => w.length > 3);
+  return words.length === 0 || words.some((w) => t.includes(w));
+}
+
+function pageTitle(html: string): string {
+  const og = /<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i.exec(html);
+  if (og) return og[1];
+  const t = /<title[^>]*>([^<]*)<\/title>/i.exec(html);
+  return t ? t[1] : '';
+}
+
+// --- Model output -> draft ---------------------------------------------------
+
 interface RawRecipe {
   emoji?: unknown;
   name?: unknown;
@@ -167,7 +273,6 @@ interface RawRecipe {
   steps?: unknown;
 }
 
-/** Parse a JSON string of the model's output into a safe ImportedRecipe. */
 function parseDraft(text: string): ImportedRecipe | null {
   const start = text.indexOf('{');
   const end = text.lastIndexOf('}');
@@ -179,15 +284,22 @@ function parseDraft(text: string): ImportedRecipe | null {
   }
 }
 
-/** Coerce a parsed object into a safe ImportedRecipe. */
 function toDraftFromRaw(raw: RawRecipe): ImportedRecipe | null {
   if (!raw || typeof raw !== 'object') return null;
   const str = (v: unknown): string => (typeof v === 'string' ? v : '');
   const ingredients = Array.isArray(raw.ingredients)
     ? raw.ingredients
         .map((i) => {
-          const o = (i ?? {}) as Record<string, unknown>;
-          return { name: str(o.name).trim(), qty: str(o.qty).trim(), unit: str(o.unit).trim() };
+          const o = (i ?? {}) as Obj;
+          let qty = str(o.qty).trim();
+          let unit = str(o.unit).trim();
+          // The model sometimes leaves the unit in qty ("100g"); split it out.
+          const mm = /^([\d.,/\s¼½¾⅓⅔⅛⅜⅝⅞-]+)([a-zA-Z]+)$/.exec(qty);
+          if (mm && (!unit || unit.toLowerCase() === mm[2].toLowerCase())) {
+            qty = mm[1].trim();
+            unit = unit || mm[2];
+          }
+          return { name: str(o.name).trim(), qty, unit };
         })
         .filter((i) => i.name)
     : [];
@@ -198,11 +310,13 @@ function toDraftFromRaw(raw: RawRecipe): ImportedRecipe | null {
     typeof raw.servings === 'number' && Number.isFinite(raw.servings)
       ? String(Math.round(raw.servings))
       : str(raw.servings).replace(/[^0-9]/g, '');
+  // Keep only a real emoji — the model occasionally returns a ":shortcode:".
+  const emojiMatch = str(raw.emoji).match(/\p{Extended_Pictographic}/u);
   return {
-    emoji: str(raw.emoji).trim().slice(0, 4),
+    emoji: emojiMatch ? emojiMatch[0] : '',
     name: str(raw.name).trim().slice(0, 80),
     servings,
-    time: str(raw.time).trim().slice(0, 24),
+    time: humanizeDuration(str(raw.time).trim()).slice(0, 24),
     ingredients,
     stepsText: steps.join('\n'),
   };
