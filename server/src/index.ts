@@ -3,6 +3,7 @@ import type { Op } from './protocol';
 import { randomToken } from './lib';
 import { importRecipe, importRecipeText } from './recipeImport';
 import { searchFood } from './food';
+import { buildSmartList } from './smartList';
 
 export { HouseholdDO } from './household';
 
@@ -30,6 +31,19 @@ export default {
         if (text && text.trim()) return json(await importRecipeText(text, env), cors);
         if (url) return json(await importRecipe(url, env), cors);
         return json({ error: 'No link or text provided.' }, cors, 400);
+      }
+
+      // POST /api/smart-list -> a tailored, store-ready list (AI + Open Food Facts)
+      if (
+        request.method === 'POST' &&
+        parts.length === 2 &&
+        parts[0] === 'api' &&
+        parts[1] === 'smart-list'
+      ) {
+        const { items } = await readJson<{
+          items: { name: string; qty?: number; unit?: string }[];
+        }>(request);
+        return json({ items: await buildSmartList(items ?? [], env) }, cors);
       }
 
       // GET /api/food?q=... -> nutrition matches from Open Food Facts
