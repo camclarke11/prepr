@@ -2,13 +2,32 @@ import { useState } from 'react';
 import { useStore } from '../state/store';
 import { usePalette } from '../hooks';
 import { Modal } from './Modal';
+import { importRecipeFromUrl } from '../lib/sync';
 
 export function CreateRecipe() {
   const { state, actions } = useStore();
   const p = usePalette();
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteText, setPasteText] = useState('');
+  const [importUrl, setImportUrl] = useState('');
+  const [importing, setImporting] = useState(false);
   const draft = state.draft;
+
+  const doImport = async () => {
+    const url = importUrl.trim();
+    if (!url || importing) return;
+    setImporting(true);
+    const { draft: imported, error } = await importRecipeFromUrl(url);
+    setImporting(false);
+    if (imported) {
+      actions.loadRecipeDraft(imported);
+      setImportUrl('');
+      actions.showToast('Imported — review and save', { dur: 3 });
+    } else {
+      actions.showToast(error || 'Could not import that link', { dur: 3 });
+    }
+  };
+
   if (!draft) return null;
 
   const editing = !!state.editingRecipeId;
@@ -68,6 +87,53 @@ export function CreateRecipe() {
       </div>
 
       <div style={{ padding: '22px 24px 24px', overflowY: 'auto' }}>
+        <div
+          style={{
+            border: `1px solid ${p.borderSoft}`,
+            background: p.surfaceSunk,
+            borderRadius: 12,
+            padding: '12px 14px',
+            marginBottom: 18,
+          }}
+        >
+          <label style={labelStyle(p)}>✨ Import from a link</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              value={importUrl}
+              onChange={(e) => setImportUrl(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && doImport()}
+              placeholder="Paste a recipe URL…"
+              aria-label="Recipe URL to import"
+              inputMode="url"
+              style={{
+                ...inputStyle,
+                flex: 1,
+                padding: '10px 12px',
+                borderRadius: 10,
+                fontSize: 14,
+              }}
+            />
+            <button
+              onClick={doImport}
+              disabled={!importUrl.trim() || importing}
+              className="pr-press"
+              style={{
+                flex: 'none',
+                padding: '0 16px',
+                borderRadius: 10,
+                border: 'none',
+                background: importUrl.trim() && !importing ? p.accent : p.surfaceAlt,
+                color: importUrl.trim() && !importing ? '#fff' : p.textFaint,
+                fontWeight: 700,
+                fontSize: 14,
+                cursor: importUrl.trim() && !importing ? 'pointer' : 'default',
+              }}
+            >
+              {importing ? 'Reading…' : 'Import'}
+            </button>
+          </div>
+        </div>
+
         <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
           <input
             value={draft.emoji}

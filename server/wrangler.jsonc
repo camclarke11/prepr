@@ -9,6 +9,8 @@
   "durable_objects": {
     "bindings": [{ "name": "HOUSEHOLD", "class_name": "HouseholdDO" }]
   },
+  // Workers AI — used to normalise an imported recipe webpage into our schema.
+  "ai": { "binding": "AI" },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["HouseholdDO"] }],
   "vars": {
     // Browser origins allowed to call the API (comma-separated). Localhost is

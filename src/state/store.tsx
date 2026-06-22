@@ -214,6 +214,7 @@ export interface Actions {
   draftAddIng: () => void;
   draftRemoveIng: (i: number) => void;
   draftPasteIngredients: (text: string) => void;
+  loadRecipeDraft: (draft: RecipeDraft) => void;
   saveRecipe: () => void;
   showToast: (msg: string, opts?: { undo?: boolean; dur?: number }) => void;
   exportData: () => void;
@@ -811,6 +812,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         });
         showToast(`Added ${parsed.length} ingredient${parsed.length === 1 ? '' : 's'}`);
       },
+
+      loadRecipeDraft: (draft) => dispatch({ draft }),
 
       saveRecipe: () => {
         const d = stateRef.current.draft;

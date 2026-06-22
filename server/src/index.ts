@@ -1,6 +1,7 @@
 import type { Env } from './env';
 import type { Op } from './protocol';
 import { randomToken } from './lib';
+import { importRecipe } from './recipeImport';
 
 export { HouseholdDO } from './household';
 
@@ -17,6 +18,18 @@ export default {
     const parts = url.pathname.split('/').filter(Boolean); // e.g. ['api','household',':id','ws']
 
     try {
+      // POST /api/recipe/import { url } -> AI-normalised recipe draft
+      if (
+        request.method === 'POST' &&
+        parts.length === 2 &&
+        parts[0] === 'api' &&
+        parts[1] === 'recipe-import'
+      ) {
+        const { url } = await readJson<{ url?: string }>(request);
+        if (!url) return json({ error: 'No link provided.' }, cors, 400);
+        return json(await importRecipe(url, env), cors);
+      }
+
       // GET /api/vapid-public-key -> the public VAPID key for client subscribe
       if (
         request.method === 'GET' &&

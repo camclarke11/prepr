@@ -159,6 +159,31 @@ export async function fetchVapidPublicKey(): Promise<string | null> {
   }
 }
 
+export interface ImportedRecipe {
+  emoji: string;
+  name: string;
+  servings: string;
+  time: string;
+  ingredients: { name: string; qty: string; unit: string }[];
+  stepsText: string;
+}
+
+/** Ask the server to fetch a recipe URL and normalise it into a draft via AI. */
+export async function importRecipeFromUrl(
+  url: string,
+): Promise<{ draft?: ImportedRecipe; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/api/recipe-import`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    return (await res.json()) as { draft?: ImportedRecipe; error?: string };
+  } catch {
+    return { error: 'Could not reach the importer.' };
+  }
+}
+
 /** Preview a household by its invite id — validates the link and names the inviter. */
 export async function fetchHouseholdPreview(
   id: string,
