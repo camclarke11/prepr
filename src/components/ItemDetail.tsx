@@ -1,17 +1,28 @@
+import { useState } from 'react';
 import { useStore } from '../state/store';
 import { usePalette } from '../hooks';
 import { categoryByName } from '../theme';
 import { fmtQty } from '../lib/format';
 import { Modal } from './Modal';
 import { CheckIcon } from './icons';
+import { supermarketById } from '../data/supermarkets';
+import { searchFood, type FoodProduct } from '../lib/sync';
 
 export function ItemDetail() {
   const { state, actions } = useStore();
   const p = usePalette();
+  const [nutri, setNutri] = useState<FoodProduct[] | null>(null);
+  const [nutriLoading, setNutriLoading] = useState(false);
   const item = state.list.find((x) => x.key === state.detailKey);
   if (!item) return null;
 
   const cat = categoryByName(item.category);
+  const sm = supermarketById(state.supermarket);
+  const lookUp = async () => {
+    setNutriLoading(true);
+    setNutri(await searchFood(item.name));
+    setNutriLoading(false);
+  };
 
   const stepBtn = {
     width: 30,
@@ -150,6 +161,133 @@ export function ItemDetail() {
           aria-label="Note"
           style={fieldStyle}
         />
+
+        {sm && (
+          <button
+            onClick={() =>
+              window.open(sm.searchUrl(item.name), '_blank', 'noopener,noreferrer')
+            }
+            className="pr-press"
+            style={{
+              marginTop: 11,
+              width: '100%',
+              padding: 11,
+              borderRadius: 11,
+              border: `1px solid ${p.border}`,
+              background: p.card,
+              color: p.text,
+              fontWeight: 700,
+              fontSize: 14,
+              cursor: 'pointer',
+            }}
+          >
+            🔎 Find at {sm.name}
+          </button>
+        )}
+
+        <div style={{ marginTop: 11 }}>
+          {!nutri && (
+            <button
+              onClick={lookUp}
+              disabled={nutriLoading}
+              className="pr-press"
+              style={{
+                width: '100%',
+                padding: 11,
+                borderRadius: 11,
+                border: `1px solid ${p.border}`,
+                background: p.card,
+                color: p.textMuted,
+                fontWeight: 700,
+                fontSize: 14,
+                cursor: nutriLoading ? 'default' : 'pointer',
+              }}
+            >
+              {nutriLoading ? 'Looking up…' : '🥗 Look up nutrition'}
+            </button>
+          )}
+          {nutri && nutri.length === 0 && (
+            <div
+              style={{
+                fontSize: 13,
+                color: p.textFaint,
+                textAlign: 'center',
+                padding: 8,
+              }}
+            >
+              No nutrition matches found.
+            </div>
+          )}
+          {nutri && nutri.length > 0 && (
+            <>
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 800,
+                  letterSpacing: '0.05em',
+                  textTransform: 'uppercase',
+                  color: p.textFaint,
+                  margin: '2px 0 8px',
+                }}
+              >
+                Nutrition · per 100g · via Open Food Facts
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {nutri.map((f, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      border: `1px solid ${p.borderSoft}`,
+                      borderRadius: 11,
+                      padding: '9px 11px',
+                    }}
+                  >
+                    <div style={{ fontSize: 14, fontWeight: 700 }}>
+                      {f.name}
+                      {f.brand && (
+                        <span style={{ color: p.textFaint, fontWeight: 600 }}>
+                          {' '}
+                          · {f.brand}
+                        </span>
+                      )}
+                    </div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        gap: 12,
+                        flexWrap: 'wrap',
+                        marginTop: 4,
+                        fontSize: 12.5,
+                        color: p.textMuted,
+                      }}
+                    >
+                      {f.kcal != null && (
+                        <span>
+                          <b>{f.kcal}</b> kcal
+                        </span>
+                      )}
+                      {f.protein != null && (
+                        <span>
+                          P <b>{f.protein}g</b>
+                        </span>
+                      )}
+                      {f.carbs != null && (
+                        <span>
+                          C <b>{f.carbs}g</b>
+                        </span>
+                      )}
+                      {f.fat != null && (
+                        <span>
+                          F <b>{f.fat}g</b>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
 
         <button
           onClick={() => actions.gotIt(item.key)}

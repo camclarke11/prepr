@@ -159,6 +159,31 @@ export async function fetchVapidPublicKey(): Promise<string | null> {
   }
 }
 
+export interface FoodProduct {
+  name: string;
+  brand: string;
+  kcal: number | null;
+  protein: number | null;
+  carbs: number | null;
+  fat: number | null;
+  sugars: number | null;
+  salt: number | null;
+  serving: string;
+  image: string;
+}
+
+/** Look up nutrition (macros per 100g) for a term via Open Food Facts. */
+export async function searchFood(query: string): Promise<FoodProduct[]> {
+  try {
+    const res = await fetch(`${API_BASE}/api/food?q=${encodeURIComponent(query)}`);
+    if (!res.ok) return [];
+    const d = (await res.json()) as { products?: FoodProduct[] };
+    return d.products ?? [];
+  } catch {
+    return [];
+  }
+}
+
 export interface ImportedRecipe {
   emoji: string;
   name: string;

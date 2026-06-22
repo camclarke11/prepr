@@ -39,6 +39,17 @@ export const STORAGE_KEY = 'prepr.v3';
 const HOUSEHOLD_KEY = 'prepr.household';
 // Set once the first-run welcome has been dismissed.
 export const WELCOME_KEY = 'prepr.welcomed';
+// The chosen supermarket id (for "find at …" links).
+const SUPERMARKET_KEY = 'prepr.supermarket';
+
+function loadSupermarket(): string | null {
+  if (typeof localStorage === 'undefined') return null;
+  try {
+    return localStorage.getItem(SUPERMARKET_KEY);
+  } catch {
+    return null;
+  }
+}
 
 function loadHousehold(): HouseholdRef | null {
   if (typeof localStorage === 'undefined') return null;
@@ -97,6 +108,8 @@ export interface AppState extends PersistedState {
   welcomeOpen: boolean;
   /** In-app guided coachmark tour running. */
   tourOpen: boolean;
+  /** Chosen supermarket id, or null. */
+  supermarket: string | null;
 }
 
 function loadPersisted(): Partial<PersistedState> {
@@ -150,6 +163,7 @@ function makeInitialState(): AppState {
     pendingJoin: null,
     welcomeOpen,
     tourOpen: false,
+    supermarket: loadSupermarket(),
     // A fresh install starts empty — a clean slate to build a real list on.
     // Persisted data is normalised on load; Array.isArray (not ??) so an
     // intentionally-empty list/plan is preserved.
@@ -232,6 +246,7 @@ export interface Actions {
   setMyName: (name: string) => void;
   startTour: () => void;
   endTour: () => void;
+  setSupermarket: (id: string | null) => void;
 }
 
 interface StoreValue {
@@ -1058,6 +1073,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       },
       startTour: () => dispatch({ tab: 'list', tourOpen: true }),
       endTour: () => dispatch({ tourOpen: false }),
+
+      setSupermarket: (id) => {
+        try {
+          if (id) localStorage.setItem(SUPERMARKET_KEY, id);
+          else localStorage.removeItem(SUPERMARKET_KEY);
+        } catch {
+          /* ignore */
+        }
+        dispatch({ supermarket: id });
+      },
     };
   }, []);
 
