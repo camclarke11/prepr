@@ -57,9 +57,10 @@ describe('App (integration)', () => {
     ).toBeInTheDocument();
   });
 
-  it('toggles dark mode from the sidebar', async () => {
+  it('toggles dark mode from the settings panel', async () => {
     const user = userEvent.setup();
     renderApp();
+    await user.click(screen.getByRole('button', { name: /Settings/i }));
     await user.click(screen.getByRole('button', { name: /Dark mode/i }));
     expect(screen.getByRole('button', { name: /Light mode/i })).toBeInTheDocument();
   });

@@ -1,6 +1,6 @@
 import { useStore } from '../state/store';
 import { usePalette, useIsMobile } from '../hooks';
-import { SettingsMenu } from './SettingsMenu';
+import { GearIcon } from './icons';
 
 export function Header() {
   const { state, actions } = useStore();
@@ -83,7 +83,26 @@ export function Header() {
             {action.label}
           </button>
         )}
-        <SettingsMenu />
+        {mobile && (
+          <button
+            onClick={actions.openSettings}
+            aria-label="Settings"
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: 11,
+              border: `1px solid ${p.border}`,
+              background: p.card,
+              color: p.textMuted,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+            }}
+          >
+            <GearIcon />
+          </button>
+        )}
       </div>
     </header>
   );

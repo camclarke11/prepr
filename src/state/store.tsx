@@ -110,6 +110,8 @@ export interface AppState extends PersistedState {
   tourOpen: boolean;
   /** Chosen supermarket id, or null. */
   supermarket: string | null;
+  /** The settings drawer is open. */
+  settingsOpen: boolean;
 }
 
 function loadPersisted(): Partial<PersistedState> {
@@ -164,6 +166,7 @@ function makeInitialState(): AppState {
     welcomeOpen,
     tourOpen: false,
     supermarket: loadSupermarket(),
+    settingsOpen: false,
     // A fresh install starts empty — a clean slate to build a real list on.
     // Persisted data is normalised on load; Array.isArray (not ??) so an
     // intentionally-empty list/plan is preserved.
@@ -247,6 +250,8 @@ export interface Actions {
   startTour: () => void;
   endTour: () => void;
   setSupermarket: (id: string | null) => void;
+  openSettings: () => void;
+  closeSettings: () => void;
 }
 
 interface StoreValue {
@@ -1083,6 +1088,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }
         dispatch({ supermarket: id });
       },
+      openSettings: () => dispatch({ settingsOpen: true }),
+      closeSettings: () => dispatch({ settingsOpen: false }),
     };
   }, []);
 
