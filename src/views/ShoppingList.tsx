@@ -6,6 +6,7 @@ import { CATALOG } from '../data/seed';
 import { suggestEmoji } from '../data/emoji';
 import { ActiveTile, CatalogTile, CategoryHeading } from '../components/tiles';
 import { EmojiPicker } from '../components/EmojiPicker';
+import { SmartListPanel } from '../components/SmartListPanel';
 import { SearchIcon } from '../components/icons';
 import type { CategoryName } from '../types';
 
@@ -34,6 +35,7 @@ export function ShoppingListView() {
   // Emoji selection for a custom item: a smart suggestion from the typed name,
   // overridable via the picker. The emoji also decides the item's category.
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [smartOpen, setSmartOpen] = useState(false);
   const [emojiOverride, setEmojiOverride] = useState<{
     emoji: string;
     category: CategoryName;
@@ -118,6 +120,24 @@ export function ShoppingListView() {
           >
             Tap a tile when it’s in your cart
           </span>
+          {list.length > 0 && (
+            <button
+              onClick={() => setSmartOpen(true)}
+              className="pr-press"
+              style={{
+                border: `1px solid ${p.accentTintBorder}`,
+                background: p.accentTintBg,
+                color: p.accentTintText,
+                borderRadius: 9,
+                padding: '5px 10px',
+                fontSize: 12,
+                fontWeight: 800,
+                cursor: 'pointer',
+              }}
+            >
+              ✨ Smart list
+            </button>
+          )}
           {list.length > 0 && (
             <button
               onClick={actions.clearAll}
@@ -362,6 +382,8 @@ export function ShoppingListView() {
           ))}
         </div>
       </section>
+
+      {smartOpen && <SmartListPanel onClose={() => setSmartOpen(false)} />}
     </div>
   );
 }

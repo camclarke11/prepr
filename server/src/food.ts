@@ -30,6 +30,8 @@ export async function searchFood(query: string): Promise<FoodProduct[]> {
         'User-Agent': 'prepr/1.0 (https://prepr.camlc.dev)',
         Accept: 'application/json',
       },
+      // Don't let one slow lookup stall a whole smart-list build.
+      signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return [];
     data = (await res.json()) as { hits?: unknown[] };

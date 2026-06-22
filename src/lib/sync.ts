@@ -184,6 +184,33 @@ export async function searchFood(query: string): Promise<FoodProduct[]> {
   }
 }
 
+export interface SmartItem {
+  name: string;
+  qty?: number;
+  unit?: string;
+  product: FoodProduct | null;
+  query: string;
+  candidates: FoodProduct[];
+}
+
+/** Build a tailored, store-ready shopping list (AI + Open Food Facts). */
+export async function buildSmartList(
+  items: { name: string; qty?: number; unit?: string }[],
+): Promise<SmartItem[]> {
+  try {
+    const res = await fetch(`${API_BASE}/api/smart-list`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items }),
+    });
+    if (!res.ok) return [];
+    const d = (await res.json()) as { items?: SmartItem[] };
+    return d.items ?? [];
+  } catch {
+    return [];
+  }
+}
+
 export interface ImportedRecipe {
   emoji: string;
   name: string;
