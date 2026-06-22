@@ -3,6 +3,7 @@ import { useStore } from '../state/store';
 import { usePalette } from '../hooks';
 import { useInstallPrompt } from '../lib/pwa';
 import { DotsIcon, MoonIcon, SunIcon } from './icons';
+import { SupermarketModal } from './SupermarketModal';
 import type { PersistedState } from '../types';
 
 export function SettingsMenu() {
@@ -10,6 +11,7 @@ export function SettingsMenu() {
   const p = usePalette();
   const { canInstall, promptInstall } = useInstallPrompt();
   const [open, setOpen] = useState(false);
+  const [supermarketOpen, setSupermarketOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -131,6 +133,7 @@ export function SettingsMenu() {
           {item('Export data', actions.exportData)}
           {item('Import data', () => fileRef.current?.click())}
           {item('Tutorial', actions.openWelcome)}
+          {item('Supermarket…', () => setSupermarketOpen(true))}
           <div style={{ height: 1, background: p.borderSoft, margin: '5px 0' }} />
           {item('Reset to sample', () => {
             if (
@@ -151,6 +154,10 @@ export function SettingsMenu() {
         onChange={onPickFile}
         style={{ display: 'none' }}
       />
+
+      {supermarketOpen && (
+        <SupermarketModal onClose={() => setSupermarketOpen(false)} />
+      )}
     </div>
   );
 }
