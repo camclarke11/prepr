@@ -81,23 +81,51 @@ export async function importRecipe(
     return { error: 'Couldn’t reach that page.' };
   }
 
+  const content = extractContent(html);
+  if (!content.trim()) return { error: 'No readable recipe found on that page.' };
+  return runModel(content, env);
+}
+
+/**
+ * Import from pasted page content — text (Ctrl+A copy) or raw HTML — for sites
+ * we can't fetch server-side (bot-blocked, paywalled, JS-rendered).
+ */
+export async function importRecipeText(
+  raw: string,
+  env: Env,
+): Promise<{ draft?: ImportedRecipe; error?: string }> {
+  const input = (raw || '').slice(0, 120_000);
+  if (!input.trim()) return { error: 'Nothing was pasted.' };
+  const looksLikeHtml = /<\/?[a-z][\s\S]*>/i.test(input);
+  const content = looksLikeHtml
+    ? extractContent(input)
+    : input.replace(/\s+/g, ' ').trim();
+  if (!content.trim()) return { error: 'Couldn’t find a recipe in that text.' };
+  return runModel(content, env);
+}
+
+/** Reduce an HTML page to the best recipe content for the model. */
+function extractContent(html: string): string {
   // Prefer the page's schema.org Recipe JSON-LD (compacted), else cleaned text.
   const title = pageTitle(html);
   let recipe = pickBestRecipe(html, title);
   // Guard against pages that embed an unrelated recipe in their JSON-LD: if the
   // chosen recipe's name shares nothing with the page title, read the article.
   if (recipe && !nameMatchesTitle(recipe, title)) recipe = null;
-  const content = recipe
-    ? JSON.stringify(compactRecipe(recipe))
-    : cleanText(html).slice(0, 8000);
-  if (!content.trim()) return { error: 'No readable recipe found on that page.' };
+  return recipe ? JSON.stringify(compactRecipe(recipe)) : cleanText(html).slice(0, 12000);
+}
 
+/** Run the model over prepared recipe content and coerce it to a draft. */
+async function runModel(
+  content: string,
+  env: Env,
+): Promise<{ draft?: ImportedRecipe; error?: string }> {
   let resp: unknown;
   try {
     const out = (await env.AI.run(MODEL, {
       messages: [
         { role: 'system', content: SYSTEM },
-        { role: 'user', content: `Recipe data:\n${content.slice(0, 9000)}` },
+        { role: 'user', content: `Recipe data:\n${content.slice(0, 12000)}` },
       ],
       max_tokens: 2048,
       temperature: 0.2,
@@ -115,7 +143,7 @@ export async function importRecipe(
         ? parseDraft(resp)
         : null;
   if (!draft || !draft.name) {
-    return { error: 'Couldn’t read a recipe from that page.' };
+    return { error: 'Couldn’t read a recipe from that.' };
   }
   return { draft };
 }

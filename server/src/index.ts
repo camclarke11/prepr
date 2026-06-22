@@ -1,7 +1,7 @@
 import type { Env } from './env';
 import type { Op } from './protocol';
 import { randomToken } from './lib';
-import { importRecipe } from './recipeImport';
+import { importRecipe, importRecipeText } from './recipeImport';
 
 export { HouseholdDO } from './household';
 
@@ -25,9 +25,10 @@ export default {
         parts[0] === 'api' &&
         parts[1] === 'recipe-import'
       ) {
-        const { url } = await readJson<{ url?: string }>(request);
-        if (!url) return json({ error: 'No link provided.' }, cors, 400);
-        return json(await importRecipe(url, env), cors);
+        const { url, text } = await readJson<{ url?: string; text?: string }>(request);
+        if (text && text.trim()) return json(await importRecipeText(text, env), cors);
+        if (url) return json(await importRecipe(url, env), cors);
+        return json({ error: 'No link or text provided.' }, cors, 400);
       }
 
       // GET /api/vapid-public-key -> the public VAPID key for client subscribe

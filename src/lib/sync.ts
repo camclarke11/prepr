@@ -172,11 +172,24 @@ export interface ImportedRecipe {
 export async function importRecipeFromUrl(
   url: string,
 ): Promise<{ draft?: ImportedRecipe; error?: string }> {
+  return postImport({ url });
+}
+
+/** Normalise pasted page content (text or HTML) into a draft via AI. */
+export async function importRecipeFromText(
+  text: string,
+): Promise<{ draft?: ImportedRecipe; error?: string }> {
+  return postImport({ text });
+}
+
+async function postImport(
+  body: { url: string } | { text: string },
+): Promise<{ draft?: ImportedRecipe; error?: string }> {
   try {
     const res = await fetch(`${API_BASE}/api/recipe-import`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url }),
+      body: JSON.stringify(body),
     });
     return (await res.json()) as { draft?: ImportedRecipe; error?: string };
   } catch {

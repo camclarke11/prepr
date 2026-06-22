@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { useStore } from '../state/store';
 import { usePalette } from '../hooks';
 import { Modal } from './Modal';
-import { importRecipeFromUrl } from '../lib/sync';
+import { importRecipeFromUrl, importRecipeFromText } from '../lib/sync';
 import { suggestEmoji } from '../data/emoji';
+import type { ImportedRecipe } from '../lib/sync';
 
 export function CreateRecipe() {
   const { state, actions } = useStore();
@@ -11,8 +12,28 @@ export function CreateRecipe() {
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteText, setPasteText] = useState('');
   const [importUrl, setImportUrl] = useState('');
+  const [importText, setImportText] = useState('');
+  const [showPaste, setShowPaste] = useState(false);
   const [importing, setImporting] = useState(false);
   const draft = state.draft;
+
+  const applyImported = (
+    imported: ImportedRecipe | undefined,
+    error: string | undefined,
+  ) => {
+    if (imported) {
+      // Prefer our own food-emoji match on the recipe name (the AI's pick is
+      // sometimes off); fall back to whatever it returned.
+      const suggested = suggestEmoji(imported.name)[0]?.emoji;
+      actions.loadRecipeDraft({ ...imported, emoji: suggested || imported.emoji });
+      setImportUrl('');
+      setImportText('');
+      setShowPaste(false);
+      actions.showToast('Imported — review and save', { dur: 3 });
+    } else {
+      actions.showToast(error || 'Could not import that', { dur: 3 });
+    }
+  };
 
   const doImport = async () => {
     const url = importUrl.trim();
@@ -20,16 +41,16 @@ export function CreateRecipe() {
     setImporting(true);
     const { draft: imported, error } = await importRecipeFromUrl(url);
     setImporting(false);
-    if (imported) {
-      // Prefer our own food-emoji match on the recipe name (the AI's pick is
-      // sometimes off); fall back to whatever it returned.
-      const suggested = suggestEmoji(imported.name)[0]?.emoji;
-      actions.loadRecipeDraft({ ...imported, emoji: suggested || imported.emoji });
-      setImportUrl('');
-      actions.showToast('Imported — review and save', { dur: 3 });
-    } else {
-      actions.showToast(error || 'Could not import that link', { dur: 3 });
-    }
+    applyImported(imported, error);
+  };
+
+  const doImportText = async () => {
+    const t = importText.trim();
+    if (!t || importing) return;
+    setImporting(true);
+    const { draft: imported, error } = await importRecipeFromText(t);
+    setImporting(false);
+    applyImported(imported, error);
   };
 
   if (!draft) return null;
@@ -136,6 +157,61 @@ export function CreateRecipe() {
               {importing ? 'Reading…' : 'Import'}
             </button>
           </div>
+          {!showPaste ? (
+            <button
+              onClick={() => setShowPaste(true)}
+              style={{
+                marginTop: 8,
+                border: 'none',
+                background: 'none',
+                color: p.textMuted,
+                fontSize: 12.5,
+                fontWeight: 600,
+                cursor: 'pointer',
+                padding: 0,
+              }}
+            >
+              Site blocked? Paste the page instead
+            </button>
+          ) : (
+            <div style={{ marginTop: 10 }}>
+              <textarea
+                value={importText}
+                onChange={(e) => setImportText(e.target.value)}
+                placeholder="Open the recipe, select all (⌘/Ctrl+A), copy, and paste it here…"
+                aria-label="Pasted recipe page"
+                style={{
+                  ...inputStyle,
+                  width: '100%',
+                  minHeight: 90,
+                  padding: '10px 12px',
+                  borderRadius: 10,
+                  fontSize: 13.5,
+                  lineHeight: 1.5,
+                  resize: 'vertical',
+                  fontFamily: 'inherit',
+                }}
+              />
+              <button
+                onClick={doImportText}
+                disabled={!importText.trim() || importing}
+                className="pr-press"
+                style={{
+                  marginTop: 8,
+                  padding: '9px 14px',
+                  borderRadius: 10,
+                  border: 'none',
+                  background: importText.trim() && !importing ? p.accent : p.surfaceAlt,
+                  color: importText.trim() && !importing ? '#fff' : p.textFaint,
+                  fontWeight: 700,
+                  fontSize: 13.5,
+                  cursor: importText.trim() && !importing ? 'pointer' : 'default',
+                }}
+              >
+                {importing ? 'Reading…' : 'Import from text'}
+              </button>
+            </div>
+          )}
         </div>
 
         <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
