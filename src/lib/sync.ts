@@ -196,17 +196,22 @@ export interface SmartItem {
   price: number | null;
   /** The pack size that estimate assumes, e.g. "400g", "1L". */
   pack: string;
+  /** A real product-page URL at the chosen store, or null (name search instead). */
+  productUrl: string | null;
+  /** The real product title from that page, if resolved. */
+  productTitle: string;
 }
 
 /** Build a tailored, store-ready shopping list (AI + Open Food Facts). */
 export async function buildSmartList(
   items: { name: string; qty?: number; unit?: string }[],
+  store?: string | null,
 ): Promise<SmartItem[]> {
   try {
     const res = await fetch(`${API_BASE}/api/smart-list`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items }),
+      body: JSON.stringify({ items, store: store || undefined }),
     });
     if (!res.ok) return [];
     const d = (await res.json()) as { items?: SmartItem[] };
