@@ -72,10 +72,10 @@ export function SmartListPanel({ onClose }: { onClose: () => void }) {
     return r.candidates[swap[idx] ?? 0] ?? r.product;
   };
 
-  // Only trust a barcode for an exact-product link when it's a full GTIN
-  // (UPC-A/EAN-13/14). Short codes and produce PLUs (e.g. "4068") just dead-end
-  // at a store, so those fall back to a clean search instead.
-  const isGtin = (bc?: string) => !!bc && /^\d{12,14}$/.test(bc);
+  // Store sites search by product NAME, not barcode (a barcode just dead-ends on
+  // "no matches"), and an OFF brand is often a rival's own-label that the chosen
+  // store won't stock. So we link to the AI's clean UK search term, which
+  // reliably lands in the right place at any supermarket.
 
   const indexOf = new Map(toBuy.map((l, i) => [l.key, i]));
   const groups = CATEGORIES.map((cat) => ({
@@ -354,16 +354,12 @@ export function SmartListPanel({ onClose }: { onClose: () => void }) {
                             <button
                               onClick={() =>
                                 window.open(
-                                  sm.searchUrl(isGtin(c?.barcode) ? c!.barcode : query),
+                                  sm.searchUrl(query),
                                   '_blank',
                                   'noopener,noreferrer',
                                 )
                               }
-                              title={
-                                isGtin(c?.barcode)
-                                  ? `Open the exact product at ${sm.name}`
-                                  : `Search ${sm.name} for ${query}`
-                              }
+                              title={`Find “${query}” at ${sm.name}`}
                               className="pr-press"
                               style={{
                                 border: 'none',
@@ -378,7 +374,7 @@ export function SmartListPanel({ onClose }: { onClose: () => void }) {
                                 flex: 'none',
                               }}
                             >
-                              {isGtin(c?.barcode) ? 'Open ↗' : 'Search ↗'}
+                              Find ↗
                             </button>
                           )}
                         </div>
