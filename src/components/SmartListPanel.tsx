@@ -7,6 +7,57 @@ import { supermarketById } from '../data/supermarkets';
 import { buildSmartList, type SmartItem } from '../lib/sync';
 import { aggregateShop, type ShopSource } from '../lib/shop';
 
+interface SavedShopItem {
+  item: string;
+  product: string;
+  price: number | null;
+  url: string;
+}
+interface SavedShop {
+  store: string;
+  savedAt: number;
+  items: SavedShopItem[];
+}
+const SAVED_SHOP_KEY = 'prepr.savedShop';
+
+function loadSavedShop(): SavedShop | null {
+  try {
+    const raw = localStorage.getItem(SAVED_SHOP_KEY);
+    const s = raw ? (JSON.parse(raw) as SavedShop) : null;
+    return s && Array.isArray(s.items) ? s : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Parse a pasted LLM response (a JSON array, possibly wrapped in prose/fences). */
+function parsePastedShop(text: string): SavedShopItem[] {
+  const a = text.indexOf('[');
+  const b = text.lastIndexOf(']');
+  if (a < 0 || b <= a) return [];
+  let arr: unknown;
+  try {
+    arr = JSON.parse(text.slice(a, b + 1));
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .map((x): SavedShopItem => {
+      const o = (x ?? {}) as Record<string, unknown>;
+      const url = typeof o.url === 'string' && /^https?:\/\//i.test(o.url) ? o.url : '';
+      const price =
+        typeof o.price === 'number' && Number.isFinite(o.price) ? o.price : null;
+      return {
+        item: typeof o.item === 'string' ? o.item.slice(0, 80) : '',
+        product: typeof o.product === 'string' ? o.product.slice(0, 120) : '',
+        price,
+        url,
+      };
+    })
+    .filter((r) => r.product || r.item);
+}
+
 /**
  * The "Smart shop": pools and sums ingredients across your planned recipes and
  * current list, drops what's already in the pantry (recognising name
@@ -14,7 +65,7 @@ import { aggregateShop, type ShopSource } from '../lib/shop';
  * estimated price, and totals it up — grouped by aisle, assumptions stated.
  */
 export function SmartListPanel({ onClose }: { onClose: () => void }) {
-  const { state } = useStore();
+  const { state, actions } = useStore();
   const p = usePalette();
   const mobile = useIsMobile();
   const sm = supermarketById(state.supermarket);
@@ -77,6 +128,78 @@ export function SmartListPanel({ onClose }: { onClose: () => void }) {
   // "no matches"), and an OFF brand is often a rival's own-label that the chosen
   // store won't stock. So we link to the AI's clean UK search term, which
   // reliably lands in the right place at any supermarket.
+
+  // "Bring your own LLM": copy a prompt to paste into a browsing model (ChatGPT/
+  // Claude/Gemini), then paste its JSON back to save a persistent shop with exact
+  // product links — handy when you want the very best matches before a big shop.
+  const [saved, setSaved] = useState<SavedShop | null>(loadSavedShop);
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteText, setPasteText] = useState('');
+
+  const buildPrompt = (): string => {
+    const storeName = sm?.name ?? 'my supermarket';
+    const lines = toBuy
+      .map((l) => {
+        const qty = l.qty > 1 || l.unit ? `${l.qty}${l.unit ? ` ${l.unit}` : ''} ` : '';
+        return `- ${qty}${l.name}`;
+      })
+      .join('\n');
+    return [
+      `I'm doing a grocery shop at ${storeName} (UK). For each item below, find the single best matching ${storeName} product.`,
+      `Return ONLY a JSON array (no prose, no markdown fences) in exactly this shape:`,
+      `[{"item":"<my item>","product":"<exact product name>","price":<number GBP>,"url":"<direct ${storeName} product page URL>"}]`,
+      ``,
+      `Rules: pick the plain, everyday own-brand version unless a brand is implied; "url" must be a real, working ${storeName} product page; "price" is the current shelf price as a number; keep the same order, one object per item.`,
+      ``,
+      `Items:`,
+      lines,
+    ].join('\n');
+  };
+
+  const copyPrompt = () => {
+    if (!toBuy.length) return;
+    const text = buildPrompt();
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(
+        () =>
+          actions.showToast('Prompt copied — paste into ChatGPT/Claude', { dur: 3 }),
+        () => actions.showToast('Could not copy the prompt'),
+      );
+    } else {
+      actions.showToast('Clipboard unavailable on this browser');
+    }
+  };
+
+  const savePasted = () => {
+    const items = parsePastedShop(pasteText);
+    if (!items.length) {
+      actions.showToast('Couldn’t read a list from that');
+      return;
+    }
+    const next: SavedShop = {
+      store: state.supermarket ?? '',
+      savedAt: Date.now(),
+      items,
+    };
+    try {
+      localStorage.setItem(SAVED_SHOP_KEY, JSON.stringify(next));
+    } catch {
+      /* storage full — keep it in memory at least */
+    }
+    setSaved(next);
+    setPasteOpen(false);
+    setPasteText('');
+    actions.showToast(`Saved ${items.length} item${items.length === 1 ? '' : 's'}`);
+  };
+
+  const clearSaved = () => {
+    try {
+      localStorage.removeItem(SAVED_SHOP_KEY);
+    } catch {
+      /* ignore */
+    }
+    setSaved(null);
+  };
 
   const indexOf = new Map(toBuy.map((l, i) => [l.key, i]));
   const groups = CATEGORIES.map((cat) => ({
@@ -214,6 +337,203 @@ export function SmartListPanel({ onClose }: { onClose: () => void }) {
             ×
           </button>
         </div>
+
+        {/* Bring-your-own-LLM tools */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+          <button
+            onClick={copyPrompt}
+            disabled={!toBuy.length}
+            className="pr-press"
+            style={{
+              flex: 1,
+              border: `1px solid ${p.border}`,
+              background: p.card,
+              color: toBuy.length ? p.text : p.textFaint,
+              borderRadius: 9,
+              padding: '8px 10px',
+              fontSize: 12.5,
+              fontWeight: 700,
+              cursor: toBuy.length ? 'pointer' : 'default',
+            }}
+          >
+            📋 Copy AI prompt
+          </button>
+          <button
+            onClick={() => setPasteOpen((o) => !o)}
+            className="pr-press"
+            style={{
+              flex: 1,
+              border: `1px solid ${p.border}`,
+              background: pasteOpen ? p.surfaceSunk : p.card,
+              color: p.text,
+              borderRadius: 9,
+              padding: '8px 10px',
+              fontSize: 12.5,
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            📥 Paste list
+          </button>
+        </div>
+
+        {pasteOpen && (
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 6 }}>
+              Paste the JSON your LLM returned — it’ll be saved for your shop.
+            </div>
+            <textarea
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              placeholder='[{"item":"beef mince","product":"…","price":3.50,"url":"https://…"}]'
+              rows={5}
+              style={{
+                width: '100%',
+                boxSizing: 'border-box',
+                borderRadius: 10,
+                border: `1px solid ${p.border}`,
+                background: p.card,
+                color: p.text,
+                fontSize: 12.5,
+                fontFamily: 'ui-monospace, monospace',
+                padding: '8px 10px',
+                outline: 'none',
+                resize: 'vertical',
+              }}
+            />
+            <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+              <button
+                onClick={savePasted}
+                className="pr-press"
+                style={{
+                  border: 'none',
+                  background: p.accent,
+                  color: '#fff',
+                  borderRadius: 9,
+                  padding: '8px 14px',
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Save list
+              </button>
+              <button
+                onClick={() => {
+                  setPasteOpen(false);
+                  setPasteText('');
+                }}
+                style={{
+                  border: `1px solid ${p.border}`,
+                  background: p.card,
+                  color: p.textMuted,
+                  borderRadius: 9,
+                  padding: '8px 14px',
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {saved && saved.items.length > 0 && (
+          <div
+            style={{
+              border: `1px solid ${p.accentTintBorder}`,
+              background: p.accentTintBg,
+              borderRadius: 12,
+              padding: '12px 14px',
+              marginBottom: 14,
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'baseline',
+                justifyContent: 'space-between',
+                gap: 8,
+                marginBottom: 8,
+              }}
+            >
+              <span style={{ fontSize: 13, fontWeight: 800, color: p.accentTintText }}>
+                📋 Saved shop
+                <span style={{ fontWeight: 600, color: p.textFaint, marginLeft: 6 }}>
+                  {new Date(saved.savedAt).toLocaleDateString('en-GB', {
+                    day: 'numeric',
+                    month: 'short',
+                  })}
+                  {(() => {
+                    const t = saved.items.reduce((s, i) => s + (i.price ?? 0), 0);
+                    return t > 0 ? ` · ${money(t)}` : '';
+                  })()}
+                </span>
+              </span>
+              <button
+                onClick={clearSaved}
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  color: p.textFaint,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  padding: 0,
+                }}
+              >
+                Clear
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              {saved.items.map((it, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: p.text,
+                        overflowWrap: 'normal',
+                      }}
+                    >
+                      {it.product || it.item}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: p.textFaint }}>
+                      {it.item && it.product ? it.item : ''}
+                      {it.item && it.product && it.price != null ? ' · ' : ''}
+                      {it.price != null ? money(it.price) : ''}
+                    </div>
+                  </div>
+                  {it.url && (
+                    <button
+                      onClick={() =>
+                        window.open(it.url, '_blank', 'noopener,noreferrer')
+                      }
+                      className="pr-press"
+                      style={{
+                        border: 'none',
+                        background: p.accent,
+                        color: '#fff',
+                        borderRadius: 9,
+                        padding: '6px 10px',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        flex: 'none',
+                      }}
+                    >
+                      Open ↗
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Source toggle — only offer plan-based shops when there are meals. */}
         {planHasMeals && (
