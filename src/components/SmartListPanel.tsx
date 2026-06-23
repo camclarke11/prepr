@@ -83,6 +83,14 @@ export function SmartListPanel({ onClose }: { onClose: () => void }) {
   const shop = useMemo(() => aggregateShop({ ...snap, source }), [snap, source]);
   const toBuy = shop.toBuy;
 
+  // The planned recipes driving this shop — used to give the BYO-LLM prompt
+  // context so it sizes packs sensibly and understands meal-prep vs one-offs.
+  const shopRecipes = useMemo(() => {
+    if (source === 'list') return [];
+    const ids = new Set(Object.values(snap.plan).flat());
+    return snap.recipes.filter((r) => ids.has(r.id));
+  }, [snap, source]);
+
   const [results, setResults] = useState<SmartItem[] | null>(null);
   const [swap, setSwap] = useState<Record<number, number>>({});
 
@@ -138,21 +146,37 @@ export function SmartListPanel({ onClose }: { onClose: () => void }) {
 
   const buildPrompt = (): string => {
     const storeName = sm?.name ?? 'my supermarket';
-    const lines = toBuy
-      .map((l) => {
-        const qty = l.qty > 1 || l.unit ? `${l.qty}${l.unit ? ` ${l.unit}` : ''} ` : '';
-        return `- ${qty}${l.name}`;
-      })
-      .join('\n');
+    const recipeBlock = shopRecipes.length
+      ? [
+          `This shop is mainly for these recipes — use them to judge sensible pack sizes and quantities:`,
+          ...shopRecipes.map((r, i) => {
+            const t = r.time && r.time !== '—' ? `, ${r.time}` : '';
+            const ings = r.ingredients.map((g) => g.name).join(', ');
+            return `${i + 1}. ${r.name} (serves ${r.servings}${t}) — ${ings}`;
+          }),
+          ``,
+          `Items below are tagged with the recipe they're for, or "(general)" for standalone items not tied to a recipe.`,
+          ``,
+        ]
+      : [];
+    const lines = toBuy.map((l) => {
+      const qty = l.qty > 1 || l.unit ? `${l.qty}${l.unit ? ` ${l.unit}` : ''} ` : '';
+      const tag = l.fromRecipes.length
+        ? ` (for: ${l.fromRecipes.join('; ')})`
+        : ' (general)';
+      return `- ${qty}${l.name}${tag}`;
+    });
     return [
-      `I'm doing a grocery shop at ${storeName} (UK). For each item below, find the single best matching ${storeName} product.`,
+      `I'm doing a grocery shop at ${storeName} (UK). For each item below, find the single best matching ${storeName} product, choosing a pack size that suits the quantity and the recipes.`,
+      ``,
+      ...recipeBlock,
       `Return ONLY a JSON array (no prose, no markdown fences) in exactly this shape:`,
       `[{"item":"<my item>","product":"<exact product name>","price":<number GBP>,"url":"<direct ${storeName} product page URL>"}]`,
       ``,
-      `Rules: pick the plain, everyday own-brand version unless a brand is implied; "url" must be a real, working ${storeName} product page; "price" is the current shelf price as a number; keep the same order, one object per item.`,
+      `Rules: pick the plain, everyday own-brand version unless a brand is implied; choose a sensible pack size for the amount needed; "url" must be a real, working ${storeName} product page; "price" is the current shelf price as a number; keep the same order, one object per item.`,
       ``,
       `Items:`,
-      lines,
+      ...lines,
     ].join('\n');
   };
 
