@@ -5,6 +5,7 @@ import {
   changeQty,
   listKey,
   mergeIntoList,
+  parseQty,
   recipeFromDraft,
   removeMeal,
   assignMeal,
@@ -299,6 +300,29 @@ describe('plan operations', () => {
   });
   it('removes a meal by index', () => {
     expect(removeMeal(plan, 'Mon', 0).Mon).toEqual(['b']);
+  });
+});
+
+describe('parseQty', () => {
+  it('parses integers and decimals', () => {
+    expect(parseQty('2')).toBe(2);
+    expect(parseQty('1.5')).toBe(1.5);
+  });
+  it('parses simple and mixed fractions', () => {
+    expect(parseQty('1/4')).toBe(0.25);
+    expect(parseQty('3/4')).toBe(0.75);
+    expect(parseQty('1 1/2')).toBe(1.5);
+    expect(parseQty('1-1/2')).toBe(1.5);
+  });
+  it('parses unicode vulgar fractions, standalone and mixed', () => {
+    expect(parseQty('½')).toBe(0.5);
+    expect(parseQty('1½')).toBe(1.5);
+    expect(parseQty('¼')).toBe(0.25);
+  });
+  it('ignores trailing text and falls back to 1', () => {
+    expect(parseQty('2 cups')).toBe(2);
+    expect(parseQty('')).toBe(1);
+    expect(parseQty('a pinch')).toBe(1);
   });
 });
 

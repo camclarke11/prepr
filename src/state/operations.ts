@@ -14,6 +14,52 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
+// Unicode vulgar fractions → an ascii " a/b" so "1½" becomes "1 1/2".
+const VULGAR: Record<string, string> = {
+  '¼': ' 1/4',
+  '½': ' 1/2',
+  '¾': ' 3/4',
+  '⅓': ' 1/3',
+  '⅔': ' 2/3',
+  '⅕': ' 1/5',
+  '⅖': ' 2/5',
+  '⅗': ' 3/5',
+  '⅘': ' 4/5',
+  '⅙': ' 1/6',
+  '⅚': ' 5/6',
+  '⅛': ' 1/8',
+  '⅜': ' 3/8',
+  '⅝': ' 5/8',
+  '⅞': ' 7/8',
+  '⅐': ' 1/7',
+  '⅑': ' 1/9',
+  '⅒': ' 1/10',
+};
+
+/**
+ * Parse a recipe quantity string into a number, understanding fractions and
+ * mixed numbers ("1/4" → 0.25, "1 1/2" → 1.5, "1½" → 1.5) — plain parseFloat
+ * stops at the slash and would read "1/4" as 1. Falls back to 1 when unparseable.
+ */
+export function parseQty(raw: string): number {
+  if (!raw) return 1;
+  let s = raw;
+  for (const [ch, rep] of Object.entries(VULGAR)) s = s.split(ch).join(rep);
+  s = s.trim().replace(/\s+/g, ' ');
+  const round3 = (n: number) => Math.round(n * 1000) / 1000;
+
+  // Mixed number: "1 1/2" or "1-1/2".
+  let m = /^(\d+)[\s-]+(\d+)\/(\d+)/.exec(s);
+  if (m && +m[3]) return round3(+m[1] + +m[2] / +m[3]);
+  // Simple fraction: "3/4".
+  m = /^(\d+)\/(\d+)/.exec(s);
+  if (m && +m[2]) return round3(+m[1] / +m[2]);
+  // Decimal or integer: "1.5", "2".
+  m = /^(\d*\.?\d+)/.exec(s);
+  if (m) return round3(parseFloat(m[1]));
+  return 1;
+}
+
 /** A stable list key from a name + unit pair (the merge identity). */
 export function listKey(name: string, unit: string): string {
   return idify(name) + (unit ? '-' + unit : '');
@@ -221,7 +267,7 @@ export function recipeFromDraft(
       return {
         name,
         emoji: match ? match.emoji : '🥘',
-        qty: parseFloat(x.qty) || 1,
+        qty: parseQty(x.qty),
         unit: (x.unit || '').trim(),
         category: match ? match.category : ('Pantry' as CategoryName),
       };
