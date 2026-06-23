@@ -57,9 +57,13 @@ export async function findProduct(
       } catch {
         continue;
       }
+      const parsed = new URL(link);
       if (!host.endsWith(store.domain)) continue;
-      if (!store.productPath.test(new URL(link).pathname)) continue;
-      return { url: link, title: (r.title ?? '').trim().slice(0, 100) };
+      if (!store.productPath.test(parsed.pathname)) continue;
+      // Drop search/tracking query params (e.g. Google's ?srsltid=…) for a clean,
+      // canonical product URL.
+      const clean = parsed.origin + parsed.pathname;
+      return { url: clean, title: (r.title ?? '').trim().slice(0, 100) };
     }
     return null;
   } catch {
