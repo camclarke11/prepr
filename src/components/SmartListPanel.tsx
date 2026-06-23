@@ -402,36 +402,51 @@ export function SmartListPanel({ onClose }: { onClose: () => void }) {
                                   fontSize: 12.5,
                                   color: exact ? p.text : p.textMuted,
                                   fontWeight: exact ? 600 : 400,
+                                  display: '-webkit-box',
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: 'vertical',
                                   overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                  whiteSpace: 'nowrap',
+                                  overflowWrap: 'normal',
+                                  lineHeight: 1.35,
                                 }}
                               >
                                 {exact && r?.productTitle
                                   ? r.productTitle
                                   : `${c?.name ?? ''}${c?.brand ? ` · ${c.brand}` : ''}`}
-                                {exact && (
-                                  <span style={{ color: p.accent }}>
-                                    {' '}
-                                    · exact match
-                                  </span>
-                                )}
                               </div>
                               <div
                                 style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  flexWrap: 'wrap',
+                                  gap: 6,
                                   fontSize: 11.5,
                                   color: p.textFaint,
-                                  marginTop: 2,
+                                  marginTop: 4,
                                 }}
                               >
+                                {exact && (
+                                  <span
+                                    style={{
+                                      fontSize: 9.5,
+                                      fontWeight: 800,
+                                      letterSpacing: '0.04em',
+                                      textTransform: 'uppercase',
+                                      color: p.accent,
+                                      background: p.accentTintBg,
+                                      border: `1px solid ${p.accentTintBorder}`,
+                                      borderRadius: 5,
+                                      padding: '1px 5px',
+                                    }}
+                                  >
+                                    Exact match
+                                  </span>
+                                )}
                                 {price != null && (
                                   <b style={{ color: p.text }}>≈ £{price.toFixed(2)}</b>
                                 )}
-                                {price != null && pack ? ` · ${pack}` : pack}
-                                {(price != null || pack) && c?.kcal != null
-                                  ? ' · '
-                                  : ''}
-                                {c?.kcal != null ? `${c.kcal} kcal/100g` : ''}
+                                {pack && <span>{pack}</span>}
+                                {c?.kcal != null && <span>{c.kcal} kcal/100g</span>}
                               </div>
                             </div>
                             {n > 1 && !exact && (
