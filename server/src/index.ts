@@ -40,10 +40,11 @@ export default {
         parts[0] === 'api' &&
         parts[1] === 'smart-list'
       ) {
-        const { items } = await readJson<{
+        const { items, store } = await readJson<{
           items: { name: string; qty?: number; unit?: string }[];
+          store?: string;
         }>(request);
-        return json({ items: await buildSmartList(items ?? [], env) }, cors);
+        return json({ items: await buildSmartList(items ?? [], env, store) }, cors);
       }
 
       // GET /api/food?q=... -> nutrition matches from Open Food Facts

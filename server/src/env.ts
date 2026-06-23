@@ -10,4 +10,10 @@ export interface Env {
   VAPID_PUBLIC_KEY?: string;
   VAPID_PRIVATE_KEY?: string;
   VAPID_SUBJECT?: string;
+  /**
+   * Serper.dev API key (Google results) — when set, the smart shop resolves each
+   * item to a real supermarket product-page URL. Falls back to a name search if
+   * unset. Set as a Worker secret: `wrangler secret put SERPER_API_KEY`.
+   */
+  SERPER_API_KEY?: string;
 }

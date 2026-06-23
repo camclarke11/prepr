@@ -1,6 +1,7 @@
 import type { Env } from './env';
 import { searchFood, ukTerm, type FoodProduct } from './food';
 import { runJson } from './ai';
+import { findProducts } from './productSearch';
 
 /** One item of the tailored shopping list. */
 export interface SmartItem {
@@ -17,6 +18,10 @@ export interface SmartItem {
   price: number | null;
   /** The pack size that estimate assumes, e.g. "400g", "1L", "6 pack". */
   pack: string;
+  /** A real product-page URL at the chosen store (web-search resolved), or null. */
+  productUrl: string | null;
+  /** The real product title from that page, if resolved. */
+  productTitle: string;
 }
 
 const SYSTEM = [
@@ -66,6 +71,7 @@ interface Pick {
 export async function buildSmartList(
   items: { name: string; qty?: number; unit?: string }[],
   env: Env,
+  store?: string,
 ): Promise<SmartItem[]> {
   const capped = items.slice(0, 30).filter((it) => it && it.name);
   if (!capped.length) return [];
@@ -101,7 +107,7 @@ export async function buildSmartList(
   }
   const byIndex = new Map<number, Pick>(picks.map((p) => [p.i, p]));
 
-  return capped.map((it, i) => {
+  const built = capped.map((it, i) => {
     const cands = candidatesList[i];
     const pick = byIndex.get(i);
     let product: FoodProduct | null = null;
@@ -127,8 +133,28 @@ export async function buildSmartList(
       candidates: ordered,
       price: pick?.price ?? null,
       pack: pick?.pack ?? '',
+      productUrl: null as string | null,
+      productTitle: '',
     };
   });
+
+  // Resolve each item to a real product-page URL at the chosen store (one web
+  // search per item, in parallel). No-op without SERPER_API_KEY / a known store.
+  if (store) {
+    const hits = await findProducts(
+      built.map((b) => b.query),
+      store,
+      env,
+    );
+    hits.forEach((hit, i) => {
+      if (hit) {
+        built[i].productUrl = hit.url;
+        built[i].productTitle = hit.title;
+      }
+    });
+  }
+
+  return built;
 }
 
 function normalizePicks(resp: unknown): Pick[] {

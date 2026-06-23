@@ -45,15 +45,16 @@ export function SmartListPanel({ onClose }: { onClose: () => void }) {
       setResults([]);
       return;
     }
-    buildSmartList(toBuy.map((l) => ({ name: l.name, qty: l.qty, unit: l.unit }))).then(
-      (r) => alive && setResults(r),
-    );
+    buildSmartList(
+      toBuy.map((l) => ({ name: l.name, qty: l.qty, unit: l.unit })),
+      state.supermarket,
+    ).then((r) => alive && setResults(r));
     return () => {
       alive = false;
     };
     // buyKey captures the meaningful change; toBuy is rebuilt each render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [buyKey]);
+  }, [buyKey, state.supermarket]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -304,6 +305,8 @@ export function SmartListPanel({ onClose }: { onClose: () => void }) {
                     const price = r?.price ?? null;
                     const pack = r?.pack || '';
                     const n = r?.candidates.length ?? 0;
+                    // A real product page beats a name search when we resolved one.
+                    const exact = r?.productUrl || null;
                     return (
                       <div
                         key={line.key}
@@ -354,12 +357,16 @@ export function SmartListPanel({ onClose }: { onClose: () => void }) {
                             <button
                               onClick={() =>
                                 window.open(
-                                  sm.searchUrl(query),
+                                  exact || sm.searchUrl(query),
                                   '_blank',
                                   'noopener,noreferrer',
                                 )
                               }
-                              title={`Find “${query}” at ${sm.name}`}
+                              title={
+                                exact
+                                  ? `Open this product at ${sm.name}`
+                                  : `Find “${query}” at ${sm.name}`
+                              }
                               className="pr-press"
                               style={{
                                 border: 'none',
@@ -374,11 +381,11 @@ export function SmartListPanel({ onClose }: { onClose: () => void }) {
                                 flex: 'none',
                               }}
                             >
-                              Find ↗
+                              {exact ? 'Open ↗' : 'Find ↗'}
                             </button>
                           )}
                         </div>
-                        {c ? (
+                        {c || exact ? (
                           <div
                             style={{
                               display: 'flex',
@@ -393,14 +400,22 @@ export function SmartListPanel({ onClose }: { onClose: () => void }) {
                               <div
                                 style={{
                                   fontSize: 12.5,
-                                  color: p.textMuted,
+                                  color: exact ? p.text : p.textMuted,
+                                  fontWeight: exact ? 600 : 400,
                                   overflow: 'hidden',
                                   textOverflow: 'ellipsis',
                                   whiteSpace: 'nowrap',
                                 }}
                               >
-                                {c.name}
-                                {c.brand ? ` · ${c.brand}` : ''}
+                                {exact && r?.productTitle
+                                  ? r.productTitle
+                                  : `${c?.name ?? ''}${c?.brand ? ` · ${c.brand}` : ''}`}
+                                {exact && (
+                                  <span style={{ color: p.accent }}>
+                                    {' '}
+                                    · exact match
+                                  </span>
+                                )}
                               </div>
                               <div
                                 style={{
@@ -413,11 +428,13 @@ export function SmartListPanel({ onClose }: { onClose: () => void }) {
                                   <b style={{ color: p.text }}>≈ £{price.toFixed(2)}</b>
                                 )}
                                 {price != null && pack ? ` · ${pack}` : pack}
-                                {(price != null || pack) && c.kcal != null ? ' · ' : ''}
-                                {c.kcal != null ? `${c.kcal} kcal/100g` : ''}
+                                {(price != null || pack) && c?.kcal != null
+                                  ? ' · '
+                                  : ''}
+                                {c?.kcal != null ? `${c.kcal} kcal/100g` : ''}
                               </div>
                             </div>
-                            {n > 1 && (
+                            {n > 1 && !exact && (
                               <button
                                 onClick={() =>
                                   setSwap((s) => ({
