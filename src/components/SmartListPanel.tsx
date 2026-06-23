@@ -151,7 +151,15 @@ export function SmartListPanel({ onClose }: { onClose: () => void }) {
           `This shop is mainly for these recipes — use them to judge sensible pack sizes and quantities:`,
           ...shopRecipes.map((r, i) => {
             const t = r.time && r.time !== '—' ? `, ${r.time}` : '';
-            const ings = r.ingredients.map((g) => g.name).join(', ');
+            const ings = r.ingredients
+              .map((g) => {
+                const n = Number.isInteger(g.qty)
+                  ? g.qty
+                  : Math.round(g.qty * 100) / 100;
+                const amt = g.qty ? `${n}${g.unit ? ` ${g.unit}` : ''} ` : '';
+                return `${amt}${g.name}`;
+              })
+              .join(', ');
             return `${i + 1}. ${r.name} (serves ${r.servings}${t}) — ${ings}`;
           }),
           ``,
