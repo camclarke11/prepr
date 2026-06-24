@@ -7,6 +7,7 @@
 
 import type { CategoryName, ListItem, Plan, Recipe } from '../types';
 import { CATEGORIES } from '../theme';
+import { planRecipeId } from '../state/operations';
 
 export type ShopSource = 'plan' | 'list' | 'both';
 
@@ -168,8 +169,8 @@ export function aggregateShop(input: {
 
   if (usePlan) {
     for (const ids of Object.values(plan)) {
-      for (const id of ids) {
-        const r = recipes.find((x) => x.id === id);
+      for (const ref of ids) {
+        const r = recipes.find((x) => x.id === planRecipeId(ref));
         if (!r) continue;
         if (!recipeNames.includes(r.name)) recipeNames.push(r.name);
         for (const ing of r.ingredients) {

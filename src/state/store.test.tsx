@@ -99,9 +99,9 @@ describe('store', () => {
   it('assigns and removes meals on the plan', () => {
     const { result } = setup();
     act(() => result.current.actions.assignMeal('Tue', 'tacos'));
-    expect(result.current.state.plan.Tue).toContain('tacos');
+    expect(result.current.state.plan.Tue.join(',')).toContain('tacos');
     act(() => result.current.actions.removeMeal('Tue', 0));
-    expect(result.current.state.plan.Tue).not.toContain('tacos');
+    expect(result.current.state.plan.Tue.join(',')).not.toContain('tacos');
   });
 
   it('adds the planned week to the list, skipping pantry staples', () => {

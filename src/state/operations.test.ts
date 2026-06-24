@@ -9,6 +9,9 @@ import {
   recipeFromDraft,
   removeMeal,
   assignMeal,
+  parsePlanEntry,
+  planRef,
+  planRecipeId,
   setItemField,
   togglePantry,
   normalizeList,
@@ -285,6 +288,21 @@ describe('togglePantry', () => {
   });
 });
 
+describe('meal-plan slots', () => {
+  it('encodes and decodes a slot-tagged entry', () => {
+    expect(planRef('r1', 'breakfast')).toBe('breakfast:r1');
+    expect(parsePlanEntry('breakfast:r1')).toEqual({ slot: 'breakfast', id: 'r1' });
+    expect(planRecipeId('lunch:r2')).toBe('r2');
+  });
+  it('reads a legacy untagged entry as dinner', () => {
+    expect(parsePlanEntry('r9')).toEqual({ slot: 'dinner', id: 'r9' });
+    expect(planRecipeId('r9')).toBe('r9');
+  });
+  it('treats an unknown prefix as part of the id (defaults to dinner)', () => {
+    expect(parsePlanEntry('brunch:r3')).toEqual({ slot: 'dinner', id: 'brunch:r3' });
+  });
+});
+
 describe('plan operations', () => {
   const plan: Plan = {
     Mon: ['a', 'b'],
@@ -295,8 +313,9 @@ describe('plan operations', () => {
     Sat: [],
     Sun: [],
   };
-  it('assigns a meal', () => {
-    expect(assignMeal(plan, 'Tue', 'c').Tue).toEqual(['c']);
+  it('assigns a meal, defaulting to the dinner slot', () => {
+    expect(assignMeal(plan, 'Tue', 'c').Tue).toEqual(['dinner:c']);
+    expect(assignMeal(plan, 'Tue', 'c', 'lunch').Tue).toEqual(['lunch:c']);
   });
   it('removes a meal by index', () => {
     expect(removeMeal(plan, 'Mon', 0).Mon).toEqual(['b']);
