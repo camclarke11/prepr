@@ -6,6 +6,7 @@ import { CATEGORIES } from '../theme';
 import { supermarketById } from '../data/supermarkets';
 import { buildSmartList, type SmartItem } from '../lib/sync';
 import { aggregateShop, type ShopSource } from '../lib/shop';
+import { planRecipeId } from '../state/operations';
 
 interface SavedShopItem {
   item: string;
@@ -87,7 +88,7 @@ export function SmartListPanel({ onClose }: { onClose: () => void }) {
   // context so it sizes packs sensibly and understands meal-prep vs one-offs.
   const shopRecipes = useMemo(() => {
     if (source === 'list') return [];
-    const ids = new Set(Object.values(snap.plan).flat());
+    const ids = new Set(Object.values(snap.plan).flat().map(planRecipeId));
     return snap.recipes.filter((r) => ids.has(r.id));
   }, [snap, source]);
 

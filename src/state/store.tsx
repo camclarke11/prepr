@@ -214,7 +214,7 @@ export interface Actions {
   addRecipeToList: (recipe: Recipe, servings: number) => void;
   toggleFavorite: (id: string) => void;
   deleteRecipe: (id: string) => void;
-  assignMeal: (day: string, id: string) => void;
+  assignMeal: (day: string, id: string, slot?: ops.MealSlot) => void;
   removeMeal: (day: string, index: number) => void;
   addWeek: () => void;
   togglePantry: (name: string) => void;
@@ -385,7 +385,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             plan: Object.fromEntries(
               Object.entries(s.plan).map(([d, ids]) => [
                 d,
-                ids.filter((x) => x !== msg.id),
+                ids.filter((x) => ops.planRecipeId(x) !== msg.id),
               ]),
             ) as AppState['plan'],
           }));
@@ -628,7 +628,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         dispatch((s) => ({
           recipes: s.recipes.filter((x) => x.id !== id),
           plan: Object.fromEntries(
-            Object.entries(s.plan).map(([d, ids]) => [d, ids.filter((x) => x !== id)]),
+            Object.entries(s.plan).map(([d, ids]) => [
+              d,
+              ids.filter((x) => ops.planRecipeId(x) !== id),
+            ]),
           ) as AppState['plan'],
           openRecipe: s.openRecipe === id ? null : s.openRecipe,
         }));
@@ -636,10 +639,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         sendOp({ kind: 'recipeDelete', id });
       },
 
-      assignMeal: (day, id) => {
+      assignMeal: (day, id, slot = 'dinner') => {
         if (!id) return;
         const key = day as keyof AppState['plan'];
-        const newPlan = ops.assignMeal(stateRef.current.plan, key, id);
+        const newPlan = ops.assignMeal(stateRef.current.plan, key, id, slot);
         dispatch({ plan: newPlan });
         const r = stateRef.current.recipes.find((x) => x.id === id);
         showToast(`${r ? r.name : 'Meal'} → ${day}`);
@@ -671,8 +674,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           const s = stateRef.current;
           const totals = new Map<string, Op & { kind: 'upsert' }>();
           for (const ids of Object.values(s.plan)) {
-            for (const id of ids) {
-              const r = s.recipes.find((x) => x.id === id);
+            for (const ref of ids) {
+              const r = s.recipes.find((x) => x.id === ops.planRecipeId(ref));
               if (!r) continue;
               for (const ing of r.ingredients) {
                 if (s.pantry.includes(ing.name)) continue;

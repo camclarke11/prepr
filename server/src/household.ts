@@ -396,8 +396,11 @@ export class HouseholdDO extends DurableObject<Env> {
           .toArray();
         for (const d of days) {
           const ids = safeIds(d.ids);
-          if (ids.includes(op.id)) {
-            const nextIds = ids.filter((x) => x !== op.id);
+          // Plan entries may be slot-tagged ("dinner:r123"); match on the id part.
+          const recipeId = (ref: string) =>
+            ref.includes(':') ? ref.slice(ref.indexOf(':') + 1) : ref;
+          if (ids.some((x) => recipeId(x) === op.id)) {
+            const nextIds = ids.filter((x) => recipeId(x) !== op.id);
             this.sql.exec(
               'UPDATE plan SET ids = ? WHERE day = ?',
               JSON.stringify(nextIds),

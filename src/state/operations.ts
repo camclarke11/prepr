@@ -65,6 +65,42 @@ export function listKey(name: string, unit: string): string {
   return idify(name) + (unit ? '-' + unit : '');
 }
 
+// --- Meal-plan slots ---------------------------------------------------------
+// The plan is synced as plain string[] per day. To support breakfast/lunch/
+// dinner without changing the wire protocol, each entry is encoded as
+// "<slot>:<recipeId>" (e.g. "dinner:r123"). Untagged legacy entries are read as
+// dinner. Recipe ids never contain ':' (kebab ids / "r"+timestamp), so it's safe.
+
+export type MealSlot = 'breakfast' | 'lunch' | 'dinner';
+export const MEAL_SLOTS: MealSlot[] = ['breakfast', 'lunch', 'dinner'];
+
+export interface PlanEntry {
+  id: string;
+  slot: MealSlot;
+}
+
+/** Decode a plan entry string into its recipe id + slot (legacy → dinner). */
+export function parsePlanEntry(ref: string): PlanEntry {
+  const i = ref.indexOf(':');
+  if (i > 0) {
+    const slot = ref.slice(0, i);
+    if (slot === 'breakfast' || slot === 'lunch' || slot === 'dinner') {
+      return { slot, id: ref.slice(i + 1) };
+    }
+  }
+  return { slot: 'dinner', id: ref };
+}
+
+/** Encode a recipe id + slot into a plan entry string. */
+export function planRef(id: string, slot: MealSlot): string {
+  return `${slot}:${id}`;
+}
+
+/** The recipe id carried by a plan entry string. */
+export function planRecipeId(ref: string): string {
+  return parsePlanEntry(ref).id;
+}
+
 /**
  * Add an item to the list, merging by (name, unit). Returns a new list.
  * Merging resets the `checked` flag so re-added items reappear as "to get".
@@ -210,8 +246,8 @@ export function addWeekToList(
 ): WeekAddResult {
   const totals = new Map<string, NewItemSpec>();
   for (const ids of Object.values(plan)) {
-    for (const id of ids) {
-      const r = recipes.find((x) => x.id === id);
+    for (const ref of ids) {
+      const r = recipes.find((x) => x.id === planRecipeId(ref));
       if (!r) continue;
       for (const ing of r.ingredients) {
         if (pantry.includes(ing.name)) continue;
@@ -404,8 +440,13 @@ export function togglePantry(pantry: string[], name: string): string[] {
   return pantry.includes(name) ? pantry.filter((x) => x !== name) : [...pantry, name];
 }
 
-export function assignMeal(plan: Plan, day: keyof Plan, id: string): Plan {
-  return { ...plan, [day]: [...(plan[day] || []), id] };
+export function assignMeal(
+  plan: Plan,
+  day: keyof Plan,
+  id: string,
+  slot: MealSlot = 'dinner',
+): Plan {
+  return { ...plan, [day]: [...(plan[day] || []), planRef(id, slot)] };
 }
 
 export function removeMeal(plan: Plan, day: keyof Plan, index: number): Plan {
