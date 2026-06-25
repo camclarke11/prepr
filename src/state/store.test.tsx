@@ -269,6 +269,49 @@ describe('store', () => {
     vi.unstubAllGlobals();
   });
 
+  it('sets a notification preference optimistically and posts it', async () => {
+    const member = {
+      id: 'M1',
+      name: 'Alex',
+      color: '#3f7a4f',
+      initial: 'A',
+      joinedAt: 1,
+    };
+    const fetchMock = vi.fn(async (url: string) =>
+      String(url).endsWith('/notify-prefs')
+        ? {
+            ok: true,
+            json: async () => ({
+              ok: true,
+              prefs: { adds: true, checked: true, cleared: true },
+            }),
+          }
+        : {
+            ok: true,
+            json: async () => ({
+              householdId: 'HID',
+              member,
+              items: [],
+              members: [member],
+            }),
+          },
+    );
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch);
+    const { result } = setup();
+    await act(async () => {
+      await result.current.actions.createHousehold('Alex');
+    });
+    expect(result.current.state.notifyPrefs.checked).toBe(false);
+    await act(async () => {
+      result.current.actions.setNotifyPref('checked', true);
+    });
+    expect(result.current.state.notifyPrefs.checked).toBe(true);
+    expect(
+      fetchMock.mock.calls.some((c) => String(c[0]).endsWith('/notify-prefs')),
+    ).toBe(true);
+    vi.unstubAllGlobals();
+  });
+
   it('a join link sets a pending join (shown via the focused JoinPrompt)', () => {
     const { result } = setup();
     act(() => result.current.actions.requestJoin('HID'));

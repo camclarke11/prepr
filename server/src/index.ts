@@ -113,6 +113,14 @@ export default {
           return json(await stub.applyOpHttp(op, memberId), cors);
         }
 
+        if (request.method === 'POST' && action === 'notify-prefs') {
+          const { memberId, prefs } = await readJson<{
+            memberId: string;
+            prefs: { adds?: boolean; checked?: boolean; cleared?: boolean };
+          }>(request);
+          return json(await stub.setNotifyPrefs(memberId, prefs ?? {}), cors);
+        }
+
         if (request.method === 'POST' && action === 'nudge') {
           const { memberId, message } = await readJson<{
             memberId: string;

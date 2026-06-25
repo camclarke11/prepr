@@ -81,6 +81,59 @@ export function SettingsPanel() {
   const stack: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 8 };
   const chevron = <span style={{ color: p.textFaint, fontSize: 16 }}>›</span>;
 
+  const toggleRow = (label: string, on: boolean, onToggle: () => void) => (
+    <button
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      onClick={onToggle}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        width: '100%',
+        textAlign: 'left',
+        padding: '12px 13px',
+        border: `1px solid ${p.borderSoft}`,
+        borderRadius: 12,
+        background: p.card,
+        color: p.text,
+        fontWeight: 600,
+        fontSize: 14.5,
+        cursor: 'pointer',
+      }}
+    >
+      <span style={{ flex: 1 }}>{label}</span>
+      <span
+        aria-hidden="true"
+        style={{
+          flex: 'none',
+          width: 42,
+          height: 25,
+          borderRadius: 13,
+          background: on ? p.accent : p.borderSoft,
+          border: `1px solid ${on ? p.accent : p.border}`,
+          position: 'relative',
+          transition: 'background .18s ease',
+        }}
+      >
+        <span
+          style={{
+            position: 'absolute',
+            top: 2,
+            left: on ? 19 : 2,
+            width: 19,
+            height: 19,
+            borderRadius: '50%',
+            background: '#fff',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.25)',
+            transition: 'left .18s ease',
+          }}
+        />
+      </span>
+    </button>
+  );
+
   return (
     <div
       onClick={close}
@@ -215,6 +268,33 @@ export function SettingsPanel() {
           )}
           {state.household && row('Copy invite link', actions.shareLink)}
         </div>
+
+        {state.household && (
+          <>
+            <div style={sectionLabel}>Notifications</div>
+            <p
+              style={{
+                margin: '0 4px 8px',
+                fontSize: 12.5,
+                color: p.textMuted,
+                lineHeight: 1.45,
+              }}
+            >
+              Choose what pings you when someone in the household makes a change.
+            </p>
+            <div style={stack}>
+              {toggleRow('An item is added', state.notifyPrefs.adds, () =>
+                actions.setNotifyPref('adds', !state.notifyPrefs.adds),
+              )}
+              {toggleRow('An item is ticked off', state.notifyPrefs.checked, () =>
+                actions.setNotifyPref('checked', !state.notifyPrefs.checked),
+              )}
+              {toggleRow('The list is cleared', state.notifyPrefs.cleared, () =>
+                actions.setNotifyPref('cleared', !state.notifyPrefs.cleared),
+              )}
+            </div>
+          </>
+        )}
 
         <div style={sectionLabel}>Supermarket</div>
         <p
