@@ -83,6 +83,8 @@ export interface PersistedState {
   plan: Plan;
   pantry: string[];
   recents: string[];
+  /** How many times each catalog item has been added — powers "the usual". */
+  frequency: Record<string, number>;
   members: Member[];
   /** The member using this device — new items are attributed to them. */
   activeMember: string;

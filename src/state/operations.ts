@@ -188,6 +188,39 @@ export function pushRecent(recents: string[], id: string, max = 12): string[] {
   return [id, ...recents.filter((x) => x !== id)].slice(0, max);
 }
 
+/** Record one more add of a catalog item (powers "the usual"). */
+export function bumpFrequency(
+  frequency: Record<string, number>,
+  id: string,
+): Record<string, number> {
+  return { ...frequency, [id]: (frequency[id] ?? 0) + 1 };
+}
+
+/**
+ * Catalog ids ranked for "the usual": most-added first, breaking ties by how
+ * recently used, then id. Only items added at least `min` times qualify, so a
+ * one-off add never becomes a "usual". Returns ids; the caller maps to catalog
+ * items and drops anything already on the list.
+ */
+export function rankUsual(
+  frequency: Record<string, number>,
+  recents: string[],
+  min = 2,
+): string[] {
+  const recentRank = (id: string) => {
+    const i = recents.indexOf(id);
+    return i < 0 ? Number.POSITIVE_INFINITY : i;
+  };
+  return Object.keys(frequency)
+    .filter((id) => frequency[id] >= min)
+    .sort(
+      (a, b) =>
+        frequency[b] - frequency[a] ||
+        recentRank(a) - recentRank(b) ||
+        a.localeCompare(b),
+    );
+}
+
 export interface RecipeAddResult {
   list: ListItem[];
   added: number;
@@ -367,6 +400,19 @@ export function normalizeRecipe(input: unknown): Recipe {
     custom: r.custom === true ? true : undefined,
     favorite: r.favorite === true ? true : undefined,
   };
+}
+
+/** Coerce an untrusted value into a clean { id: positive-int } frequency map. */
+export function normalizeFrequency(input: unknown): Record<string, number> {
+  if (Array.isArray(input)) return {};
+  const src = asRecord(input);
+  const out: Record<string, number> = {};
+  for (const [id, v] of Object.entries(src)) {
+    if (id && typeof v === 'number' && Number.isFinite(v) && v > 0) {
+      out[id] = Math.floor(v);
+    }
+  }
+  return out;
 }
 
 /** Coerce an untrusted value into a clean list of non-empty strings. */

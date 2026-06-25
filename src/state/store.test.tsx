@@ -138,6 +138,14 @@ describe('store', () => {
     expect(names).not.toContain('Garlic');
   });
 
+  it('counts adds toward "the usual" frequency', () => {
+    const { result } = setup();
+    const before = result.current.state.frequency['apples'] ?? 0;
+    act(() => result.current.actions.addCatalog('apples'));
+    act(() => result.current.actions.addCatalog('apples'));
+    expect(result.current.state.frequency['apples']).toBe(before + 2);
+  });
+
   it('persists state changes to localStorage', () => {
     const { result } = setup();
     act(() => result.current.actions.addCatalog('apples'));

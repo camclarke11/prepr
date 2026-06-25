@@ -258,3 +258,14 @@ export const SEED_RECENTS = [
   'tomatoes',
   'chicken-breast',
 ];
+
+// Add-frequency for the sample dataset, so "the usual" has something to show.
+export const SEED_FREQUENCY: Record<string, number> = {
+  milk: 8,
+  bananas: 6,
+  eggs: 5,
+  coffee: 5,
+  avocado: 3,
+  tomatoes: 3,
+  'chicken-breast': 2,
+};
