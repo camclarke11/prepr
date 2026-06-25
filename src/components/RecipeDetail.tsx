@@ -239,7 +239,38 @@ export function RecipeDetail() {
           })}
         </div>
 
-        <h3 style={{ margin: '24px 0 12px', fontSize: 15, fontWeight: 800 }}>Method</h3>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            margin: '24px 0 12px',
+          }}
+        >
+          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>Method</h3>
+          {recipe.steps.length > 0 && (
+            <button
+              onClick={() => actions.openCook(recipe.id)}
+              className="pr-press"
+              aria-label="Start cook mode"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                border: `1.5px solid ${p.accent}`,
+                background: p.accentTintBg,
+                color: p.accentTintText,
+                borderRadius: 9,
+                padding: '5px 12px',
+                fontSize: 13,
+                fontWeight: 800,
+                cursor: 'pointer',
+              }}
+            >
+              ▶ Cook
+            </button>
+          )}
+        </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
           {recipe.steps.map((text, i) => (
             <div key={i} style={{ display: 'flex', gap: 13 }}>

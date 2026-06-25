@@ -94,6 +94,8 @@ export interface AppState extends PersistedState {
   tab: Tab;
   search: string;
   openRecipe: string | null;
+  /** Recipe being cooked in the full-screen step-by-step Cook mode. */
+  cookRecipeId: string | null;
   servings: number;
   createOpen: boolean;
   draft: RecipeDraft | null;
@@ -159,6 +161,7 @@ function makeInitialState(): AppState {
     tab: 'list',
     search: '',
     openRecipe: null,
+    cookRecipeId: null,
     servings: 4,
     createOpen: false,
     draft: null,
@@ -220,6 +223,8 @@ export interface Actions {
   clearTrolley: () => void;
   openRecipe: (id: string) => void;
   closeRecipe: () => void;
+  openCook: (id: string) => void;
+  closeCook: () => void;
   incServings: () => void;
   decServings: () => void;
   addRecipeToList: (recipe: Recipe, servings: number) => void;
@@ -658,6 +663,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         dispatch({ openRecipe: id, servings: r ? r.servings : 4 });
       },
       closeRecipe: () => dispatch({ openRecipe: null }),
+
+      // Enter Cook mode straight from the recipe sheet — close the sheet and go
+      // full-screen, keeping the servings the user had dialled in.
+      openCook: (id) => {
+        const r = stateRef.current.recipes.find((x) => x.id === id);
+        dispatch({
+          cookRecipeId: id,
+          openRecipe: null,
+          servings:
+            stateRef.current.openRecipe === id
+              ? stateRef.current.servings
+              : r
+                ? r.servings
+                : 4,
+        });
+      },
+      closeCook: () => dispatch({ cookRecipeId: null }),
       incServings: () => dispatch((s) => ({ servings: Math.min(40, s.servings + 1) })),
       decServings: () => dispatch((s) => ({ servings: Math.max(1, s.servings - 1) })),
 

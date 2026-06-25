@@ -11,6 +11,7 @@ import { PantryView } from './views/Pantry';
 import { RecipeDetail } from './components/RecipeDetail';
 import { CreateRecipe } from './components/CreateRecipe';
 import { ItemDetail } from './components/ItemDetail';
+import { CookMode } from './components/CookMode';
 import { MembersModal } from './components/MembersModal';
 import { JoinPrompt } from './components/JoinPrompt';
 import { Welcome } from './components/Welcome';
@@ -143,6 +144,7 @@ export function App() {
           el.isContentEditable);
       const modalOpen =
         state.openRecipe ||
+        state.cookRecipeId ||
         state.createOpen ||
         state.detailKey ||
         state.membersOpen ||
@@ -174,6 +176,7 @@ export function App() {
   }, [
     actions,
     state.openRecipe,
+    state.cookRecipeId,
     state.createOpen,
     state.detailKey,
     state.membersOpen,
@@ -216,6 +219,7 @@ export function App() {
       {mobile && <MobileNav />}
 
       {state.openRecipe && <RecipeDetail />}
+      {state.cookRecipeId && <CookMode />}
       {state.createOpen && <CreateRecipe />}
       {state.detailKey && <ItemDetail />}
       {state.membersOpen && <MembersModal />}

@@ -102,6 +102,27 @@ textarea {
     opacity: 0;
   }
 }
+@keyframes prCookStep {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+@keyframes prPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 0.85;
+  }
+}
 
 ::-webkit-scrollbar {
   width: 10px;

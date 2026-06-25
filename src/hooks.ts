@@ -35,3 +35,36 @@ export function usePalette(): Palette {
   const { state } = useStore();
   return useResolvedTheme(state.theme) === 'dark' ? DARK : LIGHT;
 }
+
+/**
+ * Hold a screen Wake Lock while `enabled` (keeps the display awake during Cook
+ * mode). Re-acquires on tab refocus — the browser drops the lock whenever the
+ * page is hidden. A no-op where the API is unsupported.
+ */
+export function useWakeLock(enabled: boolean): void {
+  useEffect(() => {
+    if (!enabled || typeof navigator === 'undefined' || !('wakeLock' in navigator)) {
+      return;
+    }
+    let sentinel: WakeLockSentinel | null = null;
+    let cancelled = false;
+    const acquire = async () => {
+      try {
+        sentinel = await navigator.wakeLock.request('screen');
+      } catch {
+        /* denied (e.g. low battery, tab not visible) — leave it */
+      }
+    };
+    const onVisible = () => {
+      if (!cancelled && document.visibilityState === 'visible') void acquire();
+    };
+    void acquire();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', onVisible);
+      void sentinel?.release().catch(() => {});
+      sentinel = null;
+    };
+  }, [enabled]);
+}

@@ -61,6 +61,16 @@ describe('store', () => {
     expect(result.current.state.list.find((x) => x.key === key)?.name).toBe(name);
   });
 
+  it('opens and closes cook mode, closing the recipe sheet', () => {
+    const { result } = setup();
+    act(() => result.current.actions.openRecipe('greek'));
+    act(() => result.current.actions.openCook('greek'));
+    expect(result.current.state.cookRecipeId).toBe('greek');
+    expect(result.current.state.openRecipe).toBeNull();
+    act(() => result.current.actions.closeCook());
+    expect(result.current.state.cookRecipeId).toBeNull();
+  });
+
   it('deleting a recipe also removes it from the plan', () => {
     const { result } = setup();
     act(() => result.current.actions.deleteRecipe('chicken'));
