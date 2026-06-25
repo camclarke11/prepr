@@ -8,8 +8,12 @@ export function Header() {
   const mobile = useIsMobile();
   const { tab, list, recipes, pantry } = state;
 
+  // "to get" counts items still on the list, not the ones already ticked into
+  // the trolley.
+  const toGet = list.filter((x) => !x.checked).length;
+
   const titles: Record<string, [string, string]> = {
-    list: ['Shopping list', list.length ? `${list.length} to get` : 'All done — nice'],
+    list: ['Shopping list', toGet ? `${toGet} to get` : 'All done — nice'],
     recipes: ['Recipes', `${recipes.length} saved`],
     plan: ['Meal plan', 'This week · Mon–Sun'],
     pantry: ['Pantry', `${pantry.length} staples on hand`],

@@ -40,11 +40,23 @@ describe('store', () => {
     expect(result.current.state.members.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('undo restores a removed item', () => {
+  it('toggleGot checks an item off without removing it', () => {
+    const { result } = setup();
+    const { key } = result.current.state.list[0];
+    act(() => result.current.actions.toggleGot(key));
+    expect(result.current.state.list.find((x) => x.key === key)?.checked).toBe(true);
+    act(() => result.current.actions.toggleGot(key));
+    expect(result.current.state.list.find((x) => x.key === key)?.checked).toBe(false);
+  });
+
+  it('clearTrolley removes checked items but leaves the rest, and undo restores them', () => {
     const { result } = setup();
     const { key, name } = result.current.state.list[0];
-    act(() => result.current.actions.gotIt(key));
+    const before = result.current.state.list.length;
+    act(() => result.current.actions.toggleGot(key));
+    act(() => result.current.actions.clearTrolley());
     expect(result.current.state.list.find((x) => x.key === key)).toBeUndefined();
+    expect(result.current.state.list.length).toBe(before - 1);
     act(() => result.current.actions.undo());
     expect(result.current.state.list.find((x) => x.key === key)?.name).toBe(name);
   });

@@ -204,9 +204,10 @@ export interface Actions {
   setItemField: (key: string, field: 'unit' | 'spec', value: string) => void;
   openDetail: (key: string) => void;
   closeDetail: () => void;
-  gotIt: (key: string) => void;
+  toggleGot: (key: string) => void;
   undo: () => void;
   clearAll: () => void;
+  clearTrolley: () => void;
   openRecipe: (id: string) => void;
   closeRecipe: () => void;
   incServings: () => void;
@@ -525,16 +526,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       openDetail: (key) => dispatch({ detailKey: key }),
       closeDetail: () => dispatch({ detailKey: null }),
 
-      gotIt: (key) => {
+      // Tap to "check off" — the item moves into the In the trolley section
+      // rather than vanishing, so the list reads like a real shop. Tapping a
+      // checked item moves it back. Reversible by design, so no undo toast.
+      toggleGot: (key) => {
         const it = stateRef.current.list.find((x) => x.key === key);
         if (!it) return;
-        undoRef.current = [it];
-        dispatch((s) => ({
-          list: ops.removeItem(s.list, key),
-          detailKey: null,
-        }));
-        showToast(`Got ${it.name}`, { undo: true, dur: 5 });
-        sendOp({ kind: 'remove', key });
+        const checked = !it.checked;
+        dispatch((s) => ({ list: ops.toggleChecked(s.list, key), detailKey: null }));
+        sendOp({ kind: 'checked', key, checked });
       },
 
       undo: () => {
@@ -571,6 +571,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           dur: 6,
         });
         sendOp({ kind: 'clear' });
+      },
+
+      // Empty the In the trolley section once the shop is done, leaving any
+      // still-to-get items behind. Undoable like clearAll.
+      clearTrolley: () => {
+        const items = stateRef.current.list.filter((x) => x.checked);
+        if (!items.length) return;
+        undoRef.current = items;
+        dispatch((s) => ({ list: s.list.filter((x) => !x.checked) }));
+        showToast(`Cleared ${items.length} item${items.length === 1 ? '' : 's'}`, {
+          undo: true,
+          dur: 6,
+        });
+        for (const it of items) sendOp({ kind: 'remove', key: it.key });
       },
 
       openRecipe: (id) => {
