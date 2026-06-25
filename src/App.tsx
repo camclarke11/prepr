@@ -26,6 +26,7 @@ import {
   SHARE_TARGET_PATH,
 } from './lib/share';
 import { refreshSubscription } from './lib/push';
+import { updateAppBadge } from './lib/badge';
 import type { Tab } from './types';
 
 const TAB_HASH: Record<Tab, string> = {
@@ -62,6 +63,11 @@ export function App() {
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', resolvedTheme === 'dark' ? p.bg : p.accent);
   }, [p, resolvedTheme]);
+
+  // Mirror the outstanding "to get" count onto the installed-PWA app icon.
+  useEffect(() => {
+    updateAppBadge(state.list.filter((x) => !x.checked).length);
+  }, [state.list]);
 
   // Re-validate the push subscription each launch while in a household (iOS
   // churns subscriptions and pushsubscriptionchange is unreliable).
