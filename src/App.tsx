@@ -21,6 +21,7 @@ import { UpdateBanner } from './components/UpdateBanner';
 import { Toast } from './components/Toast';
 import { decodeShare, SHARE_PREFIX } from './lib/share';
 import { refreshSubscription } from './lib/push';
+import { updateAppBadge } from './lib/badge';
 import type { Tab } from './types';
 
 const TAB_HASH: Record<Tab, string> = {
@@ -56,6 +57,11 @@ export function App() {
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', state.theme === 'dark' ? p.bg : p.accent);
   }, [p, state.theme]);
+
+  // Mirror the outstanding "to get" count onto the installed-PWA app icon.
+  useEffect(() => {
+    updateAppBadge(state.list.filter((x) => !x.checked).length);
+  }, [state.list]);
 
   // Re-validate the push subscription each launch while in a household (iOS
   // churns subscriptions and pushsubscriptionchange is unreliable).
