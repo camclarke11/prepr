@@ -272,6 +272,25 @@ export async function fetchHouseholdPreview(
   }
 }
 
+/** Ping the rest of the household with a short message. Returns devices reached. */
+export async function sendNudge(
+  id: string,
+  memberId: string,
+  message: string,
+): Promise<{ ok: boolean; sent: number }> {
+  try {
+    const res = await fetch(`${API_BASE}/api/household/${id}/nudge`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ memberId, message }),
+    });
+    if (!res.ok) return { ok: false, sent: 0 };
+    return (await res.json()) as { ok: boolean; sent: number };
+  } catch {
+    return { ok: false, sent: 0 };
+  }
+}
+
 /** Register a Web Push subscription with the household. */
 export async function sendSubscription(
   id: string,

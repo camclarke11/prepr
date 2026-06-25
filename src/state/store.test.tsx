@@ -235,6 +235,40 @@ describe('store', () => {
     vi.unstubAllGlobals();
   });
 
+  it('nudges the household via the nudge endpoint', async () => {
+    const member = {
+      id: 'M1',
+      name: 'Alex',
+      color: '#3f7a4f',
+      initial: 'A',
+      joinedAt: 1,
+    };
+    const fetchMock = vi.fn(async (url: string) =>
+      String(url).endsWith('/nudge')
+        ? { ok: true, json: async () => ({ ok: true, sent: 1 }) }
+        : {
+            ok: true,
+            json: async () => ({
+              householdId: 'HID',
+              member,
+              items: [],
+              members: [member],
+            }),
+          },
+    );
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch);
+    const { result } = setup();
+    await act(async () => {
+      await result.current.actions.createHousehold('Alex');
+    });
+    await act(async () => {
+      await result.current.actions.nudge('on my way');
+    });
+    const nudged = fetchMock.mock.calls.some((c) => String(c[0]).endsWith('/nudge'));
+    expect(nudged).toBe(true);
+    vi.unstubAllGlobals();
+  });
+
   it('a join link sets a pending join (shown via the focused JoinPrompt)', () => {
     const { result } = setup();
     act(() => result.current.actions.requestJoin('HID'));

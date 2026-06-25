@@ -201,6 +201,23 @@ export class HouseholdDO extends DurableObject<Env> {
     return { ok: true };
   }
 
+  /**
+   * Ping the rest of the household with a short message ("heading to the shop —
+   * anything else?"). A deliberate poke, so it ignores the notify_adds mute.
+   * Returns how many devices it reached.
+   */
+  async nudge(memberId: string, message: string): Promise<{ ok: boolean; sent: number }> {
+    if (!this.memberExists(memberId)) return { ok: false, sent: 0 };
+    const body =
+      message.trim().slice(0, 140) || 'Heading to the shop — anything else?';
+    const sent = await this.sendPush(
+      memberId,
+      { title: this.memberName(memberId), body, tag: 'prepr-nudge' },
+      { onlyNotifyAdds: false },
+    );
+    return { ok: true, sent };
+  }
+
   // --- WebSocket (hibernatable) -------------------------------------------
 
   async fetch(request: Request): Promise<Response> {
@@ -485,21 +502,40 @@ export class HouseholdDO extends DurableObject<Env> {
     }
   }
 
-  /** Web Push the message to every member except the actor (best-effort). */
+  /** "Item added" auto-notification — gated by each member's notify_adds. */
   private async pushToOthers(actorId: string, body: string): Promise<void> {
+    await this.sendPush(
+      actorId,
+      { title: 'prepr', body, tag: 'prepr-grocery' },
+      { onlyNotifyAdds: true },
+    );
+  }
+
+  /**
+   * Web Push a payload to every member except the actor (best-effort). Returns
+   * how many live subscriptions it reached. `onlyNotifyAdds` restricts to
+   * members who haven't muted item-add pings; a deliberate nudge ignores it.
+   */
+  private async sendPush(
+    actorId: string,
+    payload: { title: string; body: string; tag: string },
+    opts: { onlyNotifyAdds: boolean },
+  ): Promise<number> {
     const privateJWK = this.env.VAPID_PRIVATE_KEY;
     const adminContact = this.env.VAPID_SUBJECT;
-    if (!privateJWK || !adminContact) return; // push not configured yet
+    if (!privateJWK || !adminContact) return 0; // push not configured yet
 
     const subs = this.sql
       .exec<{ endpoint: string; p256dh: string; auth: string }>(
         `SELECT s.endpoint, s.p256dh, s.auth FROM subscriptions s
          JOIN members m ON m.id = s.member_id
-         WHERE s.member_id != ? AND COALESCE(m.notify_adds, 1) = 1`,
+         WHERE s.member_id != ?${
+           opts.onlyNotifyAdds ? ' AND COALESCE(m.notify_adds, 1) = 1' : ''
+         }`,
         actorId,
       )
       .toArray();
-    if (!subs.length) return;
+    if (!subs.length) return 0;
 
     const dead: string[] = [];
     await Promise.all(
@@ -512,7 +548,12 @@ export class HouseholdDO extends DurableObject<Env> {
               keys: { p256dh: s.p256dh, auth: s.auth },
             },
             message: {
-              payload: { title: 'prepr', body, tag: 'prepr-grocery', url: '/' },
+              payload: {
+                title: payload.title,
+                body: payload.body,
+                tag: payload.tag,
+                url: '/',
+              },
               adminContact,
               options: { ttl: 14400, urgency: 'high', topic: 'prepr' },
             },
@@ -525,13 +566,14 @@ export class HouseholdDO extends DurableObject<Env> {
           // 404/410 = the subscription is gone for good; prune it.
           if (res.status === 404 || res.status === 410) dead.push(s.endpoint);
         } catch {
-          /* transient failure — a missed grocery ping is low-stakes; skip */
+          /* transient failure — a missed ping is low-stakes; skip */
         }
       }),
     );
     for (const ep of dead) {
       this.sql.exec('DELETE FROM subscriptions WHERE endpoint = ?', ep);
     }
+    return subs.length - dead.length;
   }
 
   // --- Helpers ------------------------------------------------------------
