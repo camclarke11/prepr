@@ -452,3 +452,27 @@ export function assignMeal(
 export function removeMeal(plan: Plan, day: keyof Plan, index: number): Plan {
   return { ...plan, [day]: (plan[day] || []).filter((_, i) => i !== index) };
 }
+
+export function moveMeal(
+  plan: Plan,
+  fromDay: keyof Plan,
+  fromIndex: number,
+  toDay: keyof Plan,
+  toSlot?: MealSlot,
+): Plan {
+  const fromRefs = plan[fromDay] || [];
+  const ref = fromRefs[fromIndex];
+  if (!ref) return plan;
+
+  const { id, slot } = parsePlanEntry(ref);
+  const moved = planRef(id, toSlot ?? slot);
+  if (fromDay === toDay && moved === ref) return plan;
+
+  const without = fromRefs.filter((_, i) => i !== fromIndex);
+  const targetRefs = fromDay === toDay ? without : plan[toDay] || [];
+  return {
+    ...plan,
+    [fromDay]: without,
+    [toDay]: [...targetRefs, moved],
+  };
+}

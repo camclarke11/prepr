@@ -26,6 +26,7 @@ export function decodeShare(s: string): Partial<PersistedState> | null {
 }
 
 export const SHARE_PREFIX = '#data=';
+export const SHARE_TARGET_PATH = '/share-target';
 
 export function buildShareUrl(data: Partial<PersistedState>): string {
   const base =
@@ -33,4 +34,17 @@ export function buildShareUrl(data: Partial<PersistedState>): string {
       ? window.location.origin + window.location.pathname
       : '';
   return base + SHARE_PREFIX + encodeShare(data);
+}
+
+export function shareTargetText(params: URLSearchParams): string {
+  const title = params.get('title')?.trim() ?? '';
+  const text = params.get('text')?.trim() ?? '';
+  const url = params.get('url')?.trim() ?? '';
+  const candidate = text || title || url;
+  return (
+    candidate
+      .split(/\r?\n/)
+      .find((line) => line.trim())
+      ?.trim() ?? ''
+  );
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decodeShare, encodeShare } from './share';
+import { decodeShare, encodeShare, shareTargetText } from './share';
 import type { PersistedState } from '../types';
 
 const sample: Partial<PersistedState> = {
@@ -37,5 +37,14 @@ describe('share codec', () => {
 
   it('rejects encoded arrays (must be an object)', () => {
     expect(decodeShare(encodeShare([] as never))).toBeNull();
+  });
+
+  it('extracts the first useful line from web share target params', () => {
+    const params = new URLSearchParams({
+      title: 'Ignored title',
+      text: '\nCherry tomatoes\nfrom notes',
+      url: 'https://example.com',
+    });
+    expect(shareTargetText(params)).toBe('Cherry tomatoes');
   });
 });

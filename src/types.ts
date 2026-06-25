@@ -74,7 +74,7 @@ export interface Member {
 
 export type Tab = 'list' | 'recipes' | 'plan' | 'pantry';
 
-export type ThemeMode = 'light' | 'dark';
+export type ThemeMode = 'system' | 'light' | 'dark';
 
 /** The persisted slice of application state. */
 export interface PersistedState {

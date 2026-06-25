@@ -57,12 +57,28 @@ describe('App (integration)', () => {
     ).toBeInTheDocument();
   });
 
-  it('toggles dark mode from the settings panel', async () => {
+  it('adds shared text from the PWA share-target route', async () => {
+    history.replaceState(
+      null,
+      '',
+      '/share-target?text=' + encodeURIComponent('Cherry tomatoes'),
+    );
+    renderApp();
+    expect(
+      await screen.findByRole('button', { name: /Cherry tomatoes.*Mark as got/i }),
+    ).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/');
+  });
+
+  it('sets dark mode from the settings panel', async () => {
     const user = userEvent.setup();
     renderApp();
     await user.click(screen.getByRole('button', { name: /Settings/i }));
-    await user.click(screen.getByRole('button', { name: /Dark mode/i }));
-    expect(screen.getByRole('button', { name: /Light mode/i })).toBeInTheDocument();
+    await user.click(screen.getByRole('radio', { name: /Dark/i }));
+    expect(screen.getByRole('radio', { name: /Dark/i })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
   });
 
   it('opens the keyboard-shortcuts help with "?"', async () => {

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import type { CSSProperties } from 'react';
+import { useRef, useState } from 'react';
+import type { CSSProperties, PointerEvent } from 'react';
 import { useStore } from '../state/store';
 import { usePalette, useIsMobile } from '../hooks';
 import { DAYS } from '../theme';
@@ -24,11 +24,32 @@ interface Entry {
   known: boolean;
 }
 
+interface DragState {
+  fromDay: string;
+  fromIndex: number;
+  name: string;
+  x: number;
+  y: number;
+  active: boolean;
+  hoverDay: string | null;
+  hoverSlot: MealSlot | null;
+}
+
+interface DragOrigin {
+  fromDay: string;
+  fromIndex: number;
+  name: string;
+  startX: number;
+  startY: number;
+}
+
 export function MealPlanView() {
   const { state, actions } = useStore();
   const p = usePalette();
   const mobile = useIsMobile();
   const { plan, recipes } = state;
+  const dragOrigin = useRef<DragOrigin | null>(null);
+  const [drag, setDrag] = useState<DragState | null>(null);
 
   const [view, setView] = useState<ViewMode>(() => {
     try {
@@ -65,6 +86,88 @@ export function MealPlanView() {
       };
     });
 
+  const hoverMatches = (day: string, slot: MealSlot) =>
+    drag?.active && drag.hoverDay === day && drag.hoverSlot === slot;
+
+  const updateDragTarget = (x: number, y: number) => {
+    const target = document
+      .elementFromPoint(x, y)
+      ?.closest<HTMLElement>('[data-plan-drop-day]');
+    const hoverDay = target?.dataset.planDropDay ?? null;
+    const hoverSlot = (target?.dataset.planDropSlot as MealSlot | undefined) ?? null;
+    setDrag((cur) => (cur ? { ...cur, x, y, hoverDay, hoverSlot } : cur));
+  };
+
+  const beginDrag = (ev: PointerEvent<HTMLButtonElement>, day: string, e: Entry) => {
+    if (ev.pointerType === 'mouse' && ev.button !== 0) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    ev.currentTarget.setPointerCapture(ev.pointerId);
+    dragOrigin.current = {
+      fromDay: day,
+      fromIndex: e.idx,
+      name: e.name,
+      startX: ev.clientX,
+      startY: ev.clientY,
+    };
+    setDrag({
+      fromDay: day,
+      fromIndex: e.idx,
+      name: e.name,
+      x: ev.clientX,
+      y: ev.clientY,
+      active: false,
+      hoverDay: null,
+      hoverSlot: null,
+    });
+  };
+
+  const moveDrag = (ev: PointerEvent<HTMLButtonElement>) => {
+    const origin = dragOrigin.current;
+    if (!origin) return;
+    ev.preventDefault();
+    const dx = ev.clientX - origin.startX;
+    const dy = ev.clientY - origin.startY;
+    const active = drag?.active || Math.hypot(dx, dy) > 6;
+    setDrag((cur) =>
+      cur
+        ? {
+            ...cur,
+            x: ev.clientX,
+            y: ev.clientY,
+            active,
+          }
+        : cur,
+    );
+    if (active) updateDragTarget(ev.clientX, ev.clientY);
+  };
+
+  const endDrag = (ev: PointerEvent<HTMLButtonElement>) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    try {
+      ev.currentTarget.releasePointerCapture(ev.pointerId);
+    } catch {
+      /* pointer capture may already be gone */
+    }
+    const cur = drag;
+    dragOrigin.current = null;
+    setDrag(null);
+    if (cur?.active && cur.hoverDay) {
+      actions.moveMeal(
+        cur.fromDay,
+        cur.fromIndex,
+        cur.hoverDay,
+        cur.hoverSlot ?? undefined,
+      );
+    }
+  };
+
+  const cancelDrag = () => {
+    dragOrigin.current = null;
+    setDrag(null);
+  };
+
   const chip = (day: string, e: Entry) => (
     <div
       key={e.idx}
@@ -76,11 +179,40 @@ export function MealPlanView() {
         border: `1px solid ${p.borderSoft}`,
         borderRadius: 10,
         padding: '7px 9px',
+        opacity:
+          drag?.fromDay === day && drag.fromIndex === e.idx && drag.active ? 0.45 : 1,
       }}
     >
+      <button
+        type="button"
+        aria-label={`Move ${e.name}`}
+        title="Move meal"
+        onPointerDown={(ev) => beginDrag(ev, day, e)}
+        onPointerMove={moveDrag}
+        onPointerUp={endDrag}
+        onPointerCancel={cancelDrag}
+        style={{
+          width: 18,
+          height: 24,
+          border: 'none',
+          background: 'none',
+          color: p.textFaint,
+          cursor: 'grab',
+          padding: 0,
+          flex: 'none',
+          fontSize: 15,
+          lineHeight: 1,
+          touchAction: 'none',
+        }}
+      >
+        ⋮⋮
+      </button>
       <span style={{ fontSize: 17, flex: 'none' }}>{e.emoji}</span>
-      <span
+      <button
+        type="button"
         onClick={() => e.known && actions.openRecipe(e.id)}
+        disabled={!e.known}
+        aria-label={e.known ? `Open ${e.name}` : undefined}
         style={{
           flex: 1,
           minWidth: 0,
@@ -89,10 +221,16 @@ export function MealPlanView() {
           lineHeight: 1.3,
           overflowWrap: 'anywhere',
           cursor: e.known ? 'pointer' : 'default',
+          border: 'none',
+          background: 'none',
+          color: p.text,
+          padding: 0,
+          textAlign: 'left',
+          font: 'inherit',
         }}
       >
         {e.name}
-      </span>
+      </button>
       <button
         onClick={() => actions.removeMeal(day, e.idx)}
         aria-label={`Remove ${e.name} from ${day}`}
@@ -247,7 +385,18 @@ export function MealPlanView() {
                 }}
               >
                 {MEAL_SLOTS.map((slot) => (
-                  <div key={slot}>
+                  <div
+                    key={slot}
+                    data-plan-drop-day={day}
+                    data-plan-drop-slot={slot}
+                    style={{
+                      borderRadius: 12,
+                      outline: hoverMatches(day, slot)
+                        ? `2px solid ${p.accent}`
+                        : '2px solid transparent',
+                      outlineOffset: 3,
+                    }}
+                  >
                     <div style={slotLabelStyle}>{SLOT_LABEL[slot]}</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                       {entries.filter((e) => e.slot === slot).map((e) => chip(day, e))}
@@ -258,11 +407,18 @@ export function MealPlanView() {
               </div>
             ) : (
               <div
+                data-plan-drop-day={day}
+                data-plan-drop-slot="dinner"
                 style={{
                   flex: 1,
                   display: 'flex',
                   flexDirection: 'column',
                   gap: 7,
+                  borderRadius: 12,
+                  outline: hoverMatches(day, 'dinner')
+                    ? `2px solid ${p.accent}`
+                    : '2px solid transparent',
+                  outlineOffset: 3,
                 }}
               >
                 {entries.map((e) => chip(day, e))}
@@ -272,6 +428,27 @@ export function MealPlanView() {
           </div>
         );
       })}
+      {drag?.active && (
+        <div
+          style={{
+            position: 'fixed',
+            left: drag.x + 12,
+            top: drag.y + 12,
+            zIndex: 80,
+            pointerEvents: 'none',
+            padding: '8px 11px',
+            borderRadius: 10,
+            background: p.card,
+            border: `1px solid ${p.accent}`,
+            boxShadow: `0 8px 24px ${p.shadow}`,
+            color: p.text,
+            fontSize: 13,
+            fontWeight: 800,
+          }}
+        >
+          {drag.name}
+        </div>
+      )}
     </div>
   );
 }

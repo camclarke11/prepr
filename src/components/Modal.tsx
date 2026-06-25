@@ -31,10 +31,19 @@ export function Modal({ onClose, children, width = 560, labelledBy }: ModalProps
       // Trap Tab focus inside the dialog.
       if (e.key === 'Tab') {
         const items = focusable();
-        if (items.length === 0) return;
+        if (items.length === 0) {
+          e.preventDefault();
+          cardRef.current?.focus();
+          return;
+        }
         const first = items[0];
         const last = items[items.length - 1];
         const active = document.activeElement;
+        if (active && cardRef.current && !cardRef.current.contains(active)) {
+          e.preventDefault();
+          (e.shiftKey ? last : first).focus();
+          return;
+        }
         if (e.shiftKey && (active === first || active === cardRef.current)) {
           e.preventDefault();
           last.focus();

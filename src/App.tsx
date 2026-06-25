@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useStore } from './state/store';
-import { usePalette, useIsMobile } from './hooks';
+import { usePalette, useIsMobile, useResolvedTheme } from './hooks';
 import { Sidebar } from './components/Sidebar';
 import { MobileNav } from './components/MobileNav';
 import { Header } from './components/Header';
@@ -19,7 +19,12 @@ import { SettingsPanel } from './components/SettingsPanel';
 import { HelpOverlay } from './components/HelpOverlay';
 import { UpdateBanner } from './components/UpdateBanner';
 import { Toast } from './components/Toast';
-import { decodeShare, SHARE_PREFIX } from './lib/share';
+import {
+  decodeShare,
+  shareTargetText,
+  SHARE_PREFIX,
+  SHARE_TARGET_PATH,
+} from './lib/share';
 import { refreshSubscription } from './lib/push';
 import type { Tab } from './types';
 
@@ -41,6 +46,7 @@ export function App() {
   const { state, actions } = useStore();
   const p = usePalette();
   const mobile = useIsMobile();
+  const resolvedTheme = useResolvedTheme(state.theme);
   const [helpOpen, setHelpOpen] = useState(false);
 
   // Apply the palette as CSS custom properties + the browser theme colour.
@@ -52,10 +58,10 @@ export function App() {
     root.style.setProperty('--pr-faint', p.textFaint);
     root.style.setProperty('--pr-scroll', p.border);
     root.style.setProperty('--pr-shadow-strong', p.shadow);
-    root.style.colorScheme = state.theme;
+    root.style.colorScheme = resolvedTheme;
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', state.theme === 'dark' ? p.bg : p.accent);
-  }, [p, state.theme]);
+    if (meta) meta.setAttribute('content', resolvedTheme === 'dark' ? p.bg : p.accent);
+  }, [p, resolvedTheme]);
 
   // Re-validate the push subscription each launch while in a household (iOS
   // churns subscriptions and pushsubscriptionchange is unreliable).
@@ -67,6 +73,12 @@ export function App() {
 
   // Invite + share links handled on first load.
   useEffect(() => {
+    if (window.location.pathname === SHARE_TARGET_PATH) {
+      const shared = shareTargetText(new URLSearchParams(window.location.search));
+      history.replaceState(null, '', window.location.origin + '/');
+      if (shared) actions.addSharedText(shared);
+      return;
+    }
     // A "#join=" invite link opens the pairing modal, prefilled and ready.
     if (window.location.hash.startsWith('#join=')) {
       const id = window.location.hash.slice('#join='.length);
