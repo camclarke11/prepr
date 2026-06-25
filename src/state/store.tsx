@@ -939,6 +939,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
                 }))
               : [{ name: '', qty: '', unit: '' }],
             stepsText: r.steps.join('\n'),
+            image: r.image,
           },
         });
       },

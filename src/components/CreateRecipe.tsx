@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { usePalette } from '../hooks';
 import { Modal } from './Modal';
 import { importRecipeFromUrl, importRecipeFromText } from '../lib/sync';
+import { uploadRecipePhoto } from '../lib/photos';
 import { suggestEmoji } from '../data/emoji';
 import type { ImportedRecipe } from '../lib/sync';
 
@@ -15,7 +16,20 @@ export function CreateRecipe() {
   const [importText, setImportText] = useState('');
   const [showPaste, setShowPaste] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const photoRef = useRef<HTMLInputElement>(null);
   const draft = state.draft;
+
+  const onPickPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setUploading(true);
+    const url = await uploadRecipePhoto(file);
+    setUploading(false);
+    if (url) actions.draftSet('image', url);
+    else actions.showToast('Could not upload the photo');
+  };
 
   const applyImported = (
     imported: ImportedRecipe | undefined,
@@ -64,6 +78,17 @@ export function CreateRecipe() {
     fontSize: 15,
     outline: 'none',
     color: p.text,
+  } as const;
+
+  const photoChip = {
+    border: 'none',
+    background: 'rgba(0,0,0,0.55)',
+    color: '#fff',
+    borderRadius: 8,
+    padding: '5px 10px',
+    fontSize: 12.5,
+    fontWeight: 700,
+    cursor: 'pointer',
   } as const;
 
   return (
@@ -242,6 +267,76 @@ export function CreateRecipe() {
               fontSize: 16,
               fontWeight: 600,
             }}
+          />
+        </div>
+
+        <div style={{ marginBottom: 18 }}>
+          <label style={labelStyle(p)}>Photo</label>
+          {draft.image ? (
+            <div
+              style={{
+                position: 'relative',
+                borderRadius: 14,
+                overflow: 'hidden',
+                border: `1px solid ${p.borderSoft}`,
+              }}
+            >
+              <img
+                src={draft.image}
+                alt=""
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  height: 170,
+                  objectFit: 'cover',
+                }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 8,
+                  right: 8,
+                  display: 'flex',
+                  gap: 6,
+                }}
+              >
+                <button
+                  onClick={() => photoRef.current?.click()}
+                  disabled={uploading}
+                  style={photoChip}
+                >
+                  {uploading ? 'Uploading…' : 'Change'}
+                </button>
+                <button onClick={() => actions.draftSet('image', '')} style={photoChip}>
+                  Remove
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => photoRef.current?.click()}
+              disabled={uploading}
+              style={{
+                width: '100%',
+                padding: '20px 14px',
+                borderRadius: 14,
+                border: `1.5px dashed ${p.border}`,
+                background: p.surfaceSunk,
+                color: p.textMuted,
+                fontWeight: 700,
+                fontSize: 14,
+                cursor: uploading ? 'default' : 'pointer',
+              }}
+            >
+              {uploading ? 'Uploading…' : '📷 Add a photo'}
+            </button>
+          )}
+          <input
+            ref={photoRef}
+            type="file"
+            accept="image/*"
+            onChange={onPickPhoto}
+            style={{ display: 'none' }}
           />
         </div>
 

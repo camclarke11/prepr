@@ -56,6 +56,7 @@ export interface SyncRecipe {
   steps: string[];
   custom?: boolean;
   favorite?: boolean;
+  image?: string;
 }
 
 export type SyncPlan = Record<string, string[]>;
@@ -286,6 +287,22 @@ export async function fetchHouseholdPreview(
     const res = await fetch(`${API_BASE}/api/household/${id}/state`);
     if (!res.ok) return null;
     return (await res.json()) as { items: SyncItem[]; members: SyncMember[] };
+  } catch {
+    return null;
+  }
+}
+
+/** Upload a recipe photo (already downscaled) to R2; returns its served URL. */
+export async function uploadImage(blob: Blob): Promise<string | null> {
+  try {
+    const res = await fetch(`${API_BASE}/api/image`, {
+      method: 'POST',
+      headers: { 'Content-Type': blob.type || 'image/jpeg' },
+      body: blob,
+    });
+    if (!res.ok) return null;
+    const d = (await res.json()) as { url?: string };
+    return d.url ?? null;
   } catch {
     return null;
   }
