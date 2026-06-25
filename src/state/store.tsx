@@ -269,6 +269,7 @@ export interface Actions {
   createHousehold: (name: string) => Promise<void>;
   joinHousehold: (id: string, name: string) => Promise<void>;
   leaveHousehold: () => void;
+  nudge: (message?: string) => Promise<void>;
   requestJoin: (id: string) => void;
   cancelJoin: () => void;
   dismissWelcome: () => void;
@@ -1198,6 +1199,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           activeMember: DEFAULT_MEMBERS[0].name,
         });
         showToast('Left the shared list');
+      },
+
+      nudge: async (message) => {
+        const h = stateRef.current.household;
+        if (!h) {
+          showToast('Join a shared list to nudge');
+          return;
+        }
+        const res = await sync.sendNudge(h.id, h.memberId, message ?? '');
+        if (res.ok && res.sent > 0) showToast('Nudge sent 📣');
+        else if (res.ok) showToast('No one to nudge yet — ask them to turn on alerts');
+        else showToast('Couldn’t send the nudge');
       },
 
       requestJoin: (id) => dispatch({ pendingJoin: id }),

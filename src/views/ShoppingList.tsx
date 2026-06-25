@@ -141,6 +141,25 @@ export function ShoppingListView() {
           >
             Tap a tile when it’s in your cart
           </span>
+          {state.household && state.members.length > 1 && (
+            <button
+              onClick={() => actions.nudge()}
+              className="pr-press"
+              title="Ping your household — “heading to the shop, anything else?”"
+              style={{
+                border: `1px solid ${p.border}`,
+                background: p.card,
+                color: p.textMuted,
+                borderRadius: 9,
+                padding: '5px 10px',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              📣 Nudge
+            </button>
+          )}
           {(list.length > 0 || planHasMeals) && (
             <button
               onClick={() => setSmartOpen(true)}

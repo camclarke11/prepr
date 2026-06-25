@@ -113,6 +113,14 @@ export default {
           return json(await stub.applyOpHttp(op, memberId), cors);
         }
 
+        if (request.method === 'POST' && action === 'nudge') {
+          const { memberId, message } = await readJson<{
+            memberId: string;
+            message?: string;
+          }>(request);
+          return json(await stub.nudge(memberId, message ?? ''), cors);
+        }
+
         if (request.method === 'POST' && action === 'subscribe') {
           const { memberId, subscription } = await readJson<{
             memberId: string;
