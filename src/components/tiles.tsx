@@ -17,6 +17,7 @@ interface ActiveTileProps {
 /** A tile on the shopping list. Tap body = got it; tap qty pill = details. */
 export function ActiveTile({ item, cat, p, me, onGot, onDetail }: ActiveTileProps) {
   const fromSomeoneElse = !!item.by && item.by !== me;
+  const checked = item.checked;
   const tileStyle: CSSProperties = {
     position: 'relative',
     width: 96,
@@ -28,10 +29,11 @@ export function ActiveTile({ item, cat, p, me, onGot, onDetail }: ActiveTileProp
     gap: 5,
     padding: '13px 6px 11px',
     borderRadius: 15,
-    border: `1px solid ${cat.color}`,
-    background: p.card,
+    border: `1px solid ${checked ? p.border : cat.color}`,
+    background: checked ? p.surfaceSunk : p.card,
     cursor: 'pointer',
-    boxShadow: `0 1px 2px ${p.shadow}`,
+    boxShadow: checked ? 'none' : `0 1px 2px ${p.shadow}`,
+    opacity: checked ? 0.7 : 1,
   };
   return (
     <div
@@ -40,7 +42,12 @@ export function ActiveTile({ item, cat, p, me, onGot, onDetail }: ActiveTileProp
       onClick={onGot}
       role="button"
       tabIndex={0}
-      aria-label={`${item.name}, ${fmtQtyUnit(item.qty, item.unit)}. Mark as got`}
+      aria-pressed={checked}
+      aria-label={
+        checked
+          ? `${item.name}, in the trolley. Move back to the list`
+          : `${item.name}, ${fmtQtyUnit(item.qty, item.unit)}. Mark as got`
+      }
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
@@ -48,6 +55,25 @@ export function ActiveTile({ item, cat, p, me, onGot, onDetail }: ActiveTileProp
         }
       }}
     >
+      {checked && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 6,
+            left: 6,
+            width: 18,
+            height: 18,
+            borderRadius: '50%',
+            background: p.accent,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          aria-hidden="true"
+        >
+          <CheckIcon size={10} strokeWidth={3.6} />
+        </div>
+      )}
       <button
         type="button"
         onClick={(e) => {
@@ -83,9 +109,10 @@ export function ActiveTile({ item, cat, p, me, onGot, onDetail }: ActiveTileProp
         style={{
           fontSize: 12.5,
           fontWeight: 700,
-          color: p.text,
+          color: checked ? p.textFaint : p.text,
           textAlign: 'center',
           lineHeight: 1.12,
+          textDecoration: checked ? 'line-through' : 'none',
         }}
       >
         {item.name}

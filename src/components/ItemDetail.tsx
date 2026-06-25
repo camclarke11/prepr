@@ -290,16 +290,16 @@ export function ItemDetail() {
         </div>
 
         <button
-          onClick={() => actions.gotIt(item.key)}
+          onClick={() => actions.toggleGot(item.key)}
           className="pr-press"
           style={{
             marginTop: 22,
             width: '100%',
             padding: 14,
             borderRadius: 13,
-            border: 'none',
-            background: p.accent,
-            color: '#fff',
+            border: item.checked ? `1px solid ${p.border}` : 'none',
+            background: item.checked ? p.card : p.accent,
+            color: item.checked ? p.textMuted : '#fff',
             fontWeight: 800,
             fontSize: 15,
             cursor: 'pointer',
@@ -310,7 +310,7 @@ export function ItemDetail() {
           }}
         >
           <CheckIcon size={17} strokeWidth={3} />
-          Got it — remove from list
+          {item.checked ? 'Move back to the list' : 'Got it — into the trolley'}
         </button>
       </div>
     </Modal>

@@ -20,9 +20,14 @@ export function ShoppingListView() {
   const q = search.trim().toLowerCase();
   const listQty = (name: string) => list.find((x) => x.name === name)?.qty ?? 0;
 
+  // Split the list: still-to-get items group by category as before; checked
+  // items collect in a flat "In the trolley" section at the bottom.
+  const toGet = list.filter((x) => !x.checked);
+  const inTrolley = list.filter((x) => x.checked);
+
   const listGroups = CATEGORIES.map((cat) => ({
     cat,
-    items: list.filter((x) => x.category === cat.name),
+    items: toGet.filter((x) => x.category === cat.name),
   })).filter((g) => g.items.length > 0);
 
   const catalogGroups = CATEGORIES.map((cat) => {
@@ -109,7 +114,7 @@ export function ShoppingListView() {
               justifyContent: 'center',
             }}
           >
-            {list.length}
+            {toGet.length}
           </span>
           <span
             style={{
@@ -188,7 +193,7 @@ export function ShoppingListView() {
                     cat={g.cat}
                     p={p}
                     me={state.activeMember}
-                    onGot={() => actions.gotIt(it.key)}
+                    onGot={() => actions.toggleGot(it.key)}
                     onDetail={() => actions.openDetail(it.key)}
                   />
                 ))}
@@ -196,6 +201,87 @@ export function ShoppingListView() {
             </div>
           ))}
         </div>
+
+        {/* Everything ticked off — the list isn't empty, it's all in the cart. */}
+        {list.length > 0 && toGet.length === 0 && (
+          <div
+            style={{
+              padding: '18px 0 4px',
+              textAlign: 'center',
+              color: p.textMuted,
+              fontWeight: 700,
+              fontSize: 14,
+            }}
+          >
+            🎉 Everything’s in the trolley
+          </div>
+        )}
+
+        {/* ---- In the trolley ---- */}
+        {inTrolley.length > 0 && (
+          <div style={{ marginTop: 22 }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                marginBottom: 12,
+              }}
+            >
+              <h3
+                style={{
+                  margin: 0,
+                  fontSize: 13,
+                  fontWeight: 800,
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                  color: p.textMuted,
+                }}
+              >
+                In the trolley
+              </h3>
+              <span
+                style={{
+                  fontSize: 12,
+                  fontWeight: 800,
+                  color: p.textFaint,
+                }}
+              >
+                {inTrolley.length}
+              </span>
+              <button
+                onClick={actions.clearTrolley}
+                className="pr-press"
+                style={{
+                  marginLeft: 'auto',
+                  border: `1px solid ${p.border}`,
+                  background: p.card,
+                  color: p.textMuted,
+                  borderRadius: 9,
+                  padding: '5px 10px',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Clear trolley
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 9 }}>
+              {inTrolley.map((it) => (
+                <ActiveTile
+                  key={it.key}
+                  item={it}
+                  cat={categoryByName(it.category)}
+                  p={p}
+                  me={state.activeMember}
+                  onGot={() => actions.toggleGot(it.key)}
+                  onDetail={() => actions.openDetail(it.key)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </section>
 
       {/* ---- Add items ---- */}
