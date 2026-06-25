@@ -29,6 +29,15 @@ export interface NotifyPrefs {
   cleared: boolean;
 }
 
+/** One entry in the household activity feed ("Sam added Milk"). */
+export interface ActivityEvent {
+  id: string;
+  actor: string;
+  type: 'add' | 'check' | 'remove' | 'clear';
+  item?: string;
+  at: number;
+}
+
 export interface SyncIngredient {
   name: string;
   emoji: string;
@@ -80,6 +89,7 @@ export type ServerMsg =
       plan: SyncPlan;
       pantry: string[];
       prefs?: NotifyPrefs;
+      activity?: ActivityEvent[];
     }
   | { t: 'item'; item: SyncItem }
   | { t: 'remove'; key: string }
@@ -89,6 +99,7 @@ export type ServerMsg =
   | { t: 'recipeRemove'; id: string }
   | { t: 'plan'; day: string; ids: string[] }
   | { t: 'pantry'; name: string; on: boolean }
+  | { t: 'activity'; event: ActivityEvent }
   | { t: 'pong' };
 
 export interface HouseholdRef {

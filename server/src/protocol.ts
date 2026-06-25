@@ -30,6 +30,17 @@ export interface NotifyPrefs {
   cleared: boolean;
 }
 
+/** One entry in the household activity feed ("Sam added Milk"). */
+export interface ActivityEvent {
+  id: string;
+  /** Display name of whoever did it, captured at the time. */
+  actor: string;
+  type: 'add' | 'check' | 'remove' | 'clear';
+  /** The item name, for everything except 'clear'. */
+  item?: string;
+  at: number;
+}
+
 export interface SyncIngredient {
   name: string;
   emoji: string;
@@ -88,6 +99,8 @@ export type ServerMsg =
       pantry: string[];
       /** The connecting member's own notification preferences. */
       prefs?: NotifyPrefs;
+      /** Recent activity-feed entries, newest last. */
+      activity?: ActivityEvent[];
     }
   | { t: 'item'; item: SyncItem }
   | { t: 'remove'; key: string }
@@ -97,4 +110,5 @@ export type ServerMsg =
   | { t: 'recipeRemove'; id: string }
   | { t: 'plan'; day: string; ids: string[] }
   | { t: 'pantry'; name: string; on: boolean }
+  | { t: 'activity'; event: ActivityEvent }
   | { t: 'pong' };
