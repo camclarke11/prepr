@@ -14,6 +14,7 @@ import type {
   PersistedState,
   Recipe,
   Tab,
+  ThemeMode,
 } from '../types';
 import { DEFAULT_MEMBERS, MEMBER_COLORS, SAMPLE_MEMBERS } from '../theme';
 import {
@@ -28,6 +29,7 @@ import * as ops from './operations';
 import type { RecipeDraft } from './operations';
 import { buildShareUrl } from '../lib/share';
 import { parseIngredients } from '../lib/parseIngredients';
+import { suggestEmoji } from '../data/emoji';
 import * as sync from '../lib/sync';
 import type { HouseholdRef, Op, ServerMsg, SyncItem, SyncMember } from '../lib/sync';
 
@@ -124,6 +126,10 @@ function loadPersisted(): Partial<PersistedState> {
   }
 }
 
+function normalizeTheme(theme: unknown, fallback: ThemeMode = 'system'): ThemeMode {
+  return theme === 'system' || theme === 'dark' || theme === 'light' ? theme : fallback;
+}
+
 function makeInitialState(): AppState {
   const saved = loadPersisted();
   const freshInstall = Object.keys(saved).length === 0;
@@ -182,7 +188,7 @@ function makeInitialState(): AppState {
       : [],
     members,
     activeMember,
-    theme: saved.theme ?? 'light',
+    theme: normalizeTheme(saved.theme),
   };
 }
 
@@ -197,9 +203,11 @@ export interface Actions {
   setTab: (tab: Tab) => void;
   setSearch: (q: string) => void;
   setRecipeQuery: (q: string) => void;
+  setTheme: (theme: ThemeMode) => void;
   toggleTheme: () => void;
   addCatalog: (id: string) => void;
   addCustom: (opts?: { emoji?: string; category?: CategoryName }) => void;
+  addSharedText: (text: string) => void;
   changeQty: (key: string, delta: number) => void;
   setItemField: (key: string, field: 'unit' | 'spec', value: string) => void;
   openDetail: (key: string) => void;
@@ -217,6 +225,12 @@ export interface Actions {
   deleteRecipe: (id: string) => void;
   assignMeal: (day: string, id: string, slot?: ops.MealSlot) => void;
   removeMeal: (day: string, index: number) => void;
+  moveMeal: (
+    fromDay: string,
+    fromIndex: number,
+    toDay: string,
+    toSlot?: ops.MealSlot,
+  ) => void;
   addWeek: () => void;
   togglePantry: (name: string) => void;
   setActiveMember: (name: string) => void;
@@ -446,6 +460,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setTab: (tab) => dispatch({ tab, search: '' }),
       setSearch: (search) => dispatch({ search }),
       setRecipeQuery: (recipeQuery) => dispatch({ recipeQuery }),
+      setTheme: (theme) => dispatch({ theme }),
       toggleTheme: () =>
         dispatch((s) => ({ theme: s.theme === 'dark' ? 'light' : 'dark' })),
 
@@ -505,6 +520,50 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           });
         }
         showToast(`Added “${q}”`);
+      },
+
+      addSharedText: (text) => {
+        const q = text.trim().replace(/\s+/g, ' ');
+        if (!q) return;
+        const c = CATALOG.find((x) => x.name.toLowerCase() === q.toLowerCase());
+        if (c) {
+          dispatch((s) => ({
+            list: ops.mergeIntoList(s.list, {
+              name: c.name,
+              emoji: c.emoji,
+              category: c.category,
+              by: s.activeMember,
+            }),
+            recents: ops.pushRecent(s.recents, c.id),
+            search: '',
+            tab: 'list',
+          }));
+          flash(c.id);
+          sendOp({
+            kind: 'upsert',
+            name: c.name,
+            emoji: c.emoji,
+            category: c.category,
+          });
+          showToast(`Added “${c.name}” from share sheet`);
+          return;
+        }
+
+        const suggestion = suggestEmoji(q)[0];
+        const emoji = suggestion?.emoji ?? '🛒';
+        const category = suggestion?.category ?? 'Pantry';
+        dispatch((s) => ({
+          list: ops.mergeIntoList(s.list, {
+            name: q,
+            emoji,
+            category,
+            by: s.activeMember,
+          }),
+          search: '',
+          tab: 'list',
+        }));
+        sendOp({ kind: 'upsert', name: q, emoji, category });
+        showToast(`Added “${q}” from share sheet`);
       },
 
       changeQty: (key, delta) => {
@@ -667,6 +726,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const newPlan = ops.removeMeal(stateRef.current.plan, key, index);
         dispatch({ plan: newPlan });
         sendOp({ kind: 'planSet', day, ids: newPlan[key] });
+      },
+      moveMeal: (fromDay, fromIndex, toDay, toSlot) => {
+        const fromKey = fromDay as keyof AppState['plan'];
+        const toKey = toDay as keyof AppState['plan'];
+        const newPlan = ops.moveMeal(
+          stateRef.current.plan,
+          fromKey,
+          fromIndex,
+          toKey,
+          toSlot,
+        );
+        if (newPlan === stateRef.current.plan) return;
+        dispatch({ plan: newPlan });
+        sendOp({ kind: 'planSet', day: fromDay, ids: newPlan[fromKey] });
+        if (fromDay !== toDay) {
+          sendOp({ kind: 'planSet', day: toDay, ids: newPlan[toKey] });
+        }
+        showToast(`Moved meal to ${toDay}`);
       },
 
       addWeek: () => {
@@ -950,8 +1027,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               : s.recents,
             members,
             activeMember,
-            theme:
-              data.theme === 'dark' || data.theme === 'light' ? data.theme : s.theme,
+            theme: normalizeTheme(data.theme, s.theme),
             openRecipe: null,
             detailKey: null,
             createOpen: false,

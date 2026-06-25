@@ -116,6 +116,18 @@ describe('store', () => {
     expect(result.current.state.plan.Tue.join(',')).not.toContain('tacos');
   });
 
+  it('moves meals between days on the plan', () => {
+    const { result } = setup();
+    const beforeMon = result.current.state.plan.Mon.length;
+    const beforeTue = result.current.state.plan.Tue.length;
+    act(() => result.current.actions.moveMeal('Mon', 0, 'Tue', 'lunch'));
+    expect(result.current.state.plan.Mon).toHaveLength(beforeMon - 1);
+    expect(result.current.state.plan.Tue).toHaveLength(beforeTue + 1);
+    const moved =
+      result.current.state.plan.Tue[result.current.state.plan.Tue.length - 1];
+    expect(moved.startsWith('lunch:')).toBe(true);
+  });
+
   it('adds the planned week to the list, skipping pantry staples', () => {
     const { result } = setup();
     act(() => result.current.actions.addWeek());

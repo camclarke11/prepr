@@ -18,6 +18,7 @@ interface ActiveTileProps {
 export function ActiveTile({ item, cat, p, me, onGot, onDetail }: ActiveTileProps) {
   const fromSomeoneElse = !!item.by && item.by !== me;
   const checked = item.checked;
+  const addedBy = item.by ? `. Added by ${item.by}` : '';
   const tileStyle: CSSProperties = {
     position: 'relative',
     width: 96,
@@ -45,8 +46,8 @@ export function ActiveTile({ item, cat, p, me, onGot, onDetail }: ActiveTileProp
       aria-pressed={checked}
       aria-label={
         checked
-          ? `${item.name}, in the trolley. Move back to the list`
-          : `${item.name}, ${fmtQtyUnit(item.qty, item.unit)}. Mark as got`
+          ? `${item.name}, in the trolley${addedBy}. Move back to the list`
+          : `${item.name}, ${fmtQtyUnit(item.qty, item.unit)}${addedBy}. Mark as got`
       }
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -151,6 +152,7 @@ export function ActiveTile({ item, cat, p, me, onGot, onDetail }: ActiveTileProp
             alignItems: 'center',
             justifyContent: 'center',
           }}
+          aria-hidden="true"
           title={`Added by ${item.by}`}
         >
           {item.by[0]}
@@ -282,6 +284,7 @@ export function PantryTile({ item, p, have, onToggle }: PantryTileProps) {
             justifyContent: 'center',
             boxShadow: '0 1px 3px rgba(0,0,0,0.18)',
           }}
+          aria-hidden="true"
         >
           <CheckIcon size={11} strokeWidth={3.6} />
         </span>

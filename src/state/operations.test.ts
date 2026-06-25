@@ -8,6 +8,7 @@ import {
   parseQty,
   recipeFromDraft,
   removeMeal,
+  moveMeal,
   assignMeal,
   parsePlanEntry,
   planRef,
@@ -319,6 +320,14 @@ describe('plan operations', () => {
   });
   it('removes a meal by index', () => {
     expect(removeMeal(plan, 'Mon', 0).Mon).toEqual(['b']);
+  });
+  it('moves a meal between days and can retag its slot', () => {
+    const out = moveMeal(plan, 'Mon', 0, 'Tue', 'lunch');
+    expect(out.Mon).toEqual(['b']);
+    expect(out.Tue).toEqual(['lunch:a']);
+  });
+  it('leaves the plan untouched when moving an unknown meal', () => {
+    expect(moveMeal(plan, 'Mon', 5, 'Tue')).toBe(plan);
   });
 });
 

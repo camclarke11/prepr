@@ -26,6 +26,15 @@ export default defineConfig({
         orientation: 'portrait',
         start_url: '/',
         scope: '/',
+        share_target: {
+          action: '/share-target',
+          method: 'GET',
+          params: {
+            title: 'title',
+            text: 'text',
+            url: 'url',
+          },
+        },
         categories: ['food', 'lifestyle', 'productivity'],
         icons: [
           { src: 'pwa-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },

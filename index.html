@@ -8,20 +8,27 @@
     />
     <meta name="theme-color" content="#3f7a4f" />
     <!--
-      Apply the saved theme before first paint so dark-mode users don't get a
-      flash of the light background. App.tsx reconciles the full palette on mount.
+      Apply the saved/system theme before first paint so dark-mode users don't
+      get a flash of the light background. App.tsx reconciles the full palette
+      on mount.
     -->
     <script>
       (function () {
         try {
-          var raw = localStorage.getItem('prepr.v2');
-          var theme = raw ? JSON.parse(raw).theme : null;
-          if (theme !== 'dark' && theme !== 'light') return;
-          var dark = theme === 'dark';
+          var raw = localStorage.getItem('prepr.v3');
+          var theme = raw ? JSON.parse(raw).theme : 'system';
+          if (theme !== 'dark' && theme !== 'light' && theme !== 'system') {
+            theme = 'system';
+          }
+          var dark =
+            theme === 'dark' ||
+            (theme === 'system' &&
+              window.matchMedia &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches);
           var root = document.documentElement;
           root.style.setProperty('--pr-bg', dark ? '#161715' : '#f1efe9');
           root.style.setProperty('--pr-text', dark ? '#ece9e1' : '#1c1c1a');
-          root.style.colorScheme = theme;
+          root.style.colorScheme = dark ? 'dark' : 'light';
           var meta = document.querySelector('meta[name="theme-color"]');
           if (meta) meta.setAttribute('content', dark ? '#161715' : '#3f7a4f');
         } catch (e) {

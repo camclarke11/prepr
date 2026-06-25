@@ -92,7 +92,10 @@ export function RecipesView() {
               role="button"
               tabIndex={0}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') actions.openRecipe(r.id);
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  actions.openRecipe(r.id);
+                }
               }}
               style={{
                 background: p.card,

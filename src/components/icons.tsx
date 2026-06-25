@@ -7,6 +7,8 @@ const base = (size: number) => ({
   width: size,
   height: size,
   viewBox: '0 0 24 24',
+  'aria-hidden': true,
+  focusable: false,
   fill: 'none',
   stroke: 'currentColor' as const,
   strokeWidth: 1.8,
@@ -66,6 +68,8 @@ export function SearchIcon({
       width={size}
       height={size}
       viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
       fill="none"
       stroke={color}
       strokeWidth={2}
@@ -87,6 +91,8 @@ export function CheckIcon({
       width={size}
       height={size}
       viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
       fill="none"
       stroke={color}
       strokeWidth={strokeWidth}
@@ -108,6 +114,8 @@ export function StarIcon({
       width={size}
       height={size}
       viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
       fill={filled ? color : 'none'}
       stroke={color}
       strokeWidth={1.8}
@@ -132,6 +140,16 @@ export function MoonIcon({ size = 19 }: IconProps) {
   return (
     <svg {...base(size)}>
       <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+    </svg>
+  );
+}
+
+export function MonitorIcon({ size = 19 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <rect x="4" y="5" width="16" height="11" rx="2" />
+      <path d="M9 20h6" />
+      <path d="M12 16v4" />
     </svg>
   );
 }

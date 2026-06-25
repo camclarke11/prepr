@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { DARK, LIGHT, type Palette } from './theme';
 import { useStore } from './state/store';
+import type { ThemeMode } from './types';
 
 /** Reactive media query hook. */
 export function useMediaQuery(query: string): boolean {
@@ -23,8 +24,14 @@ export function useIsMobile(): boolean {
   return useMediaQuery('(max-width: 899px)');
 }
 
+/** Resolve "system" to the current OS colour scheme. */
+export function useResolvedTheme(theme: ThemeMode): 'light' | 'dark' {
+  const systemDark = useMediaQuery('(prefers-color-scheme: dark)');
+  return theme === 'system' ? (systemDark ? 'dark' : 'light') : theme;
+}
+
 /** The active colour palette, following the user's theme choice. */
 export function usePalette(): Palette {
   const { state } = useStore();
-  return state.theme === 'dark' ? DARK : LIGHT;
+  return useResolvedTheme(state.theme) === 'dark' ? DARK : LIGHT;
 }

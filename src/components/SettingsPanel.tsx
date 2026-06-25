@@ -4,8 +4,8 @@ import { useStore } from '../state/store';
 import { usePalette, useIsMobile } from '../hooks';
 import { useInstallPrompt } from '../lib/pwa';
 import { SUPERMARKETS } from '../data/supermarkets';
-import { CheckIcon, MoonIcon, SunIcon } from './icons';
-import type { PersistedState } from '../types';
+import { CheckIcon, MonitorIcon, MoonIcon, SunIcon } from './icons';
+import type { PersistedState, ThemeMode } from '../types';
 
 /** The dedicated settings drawer — slides in over a blurred backdrop. */
 export function SettingsPanel() {
@@ -156,12 +156,51 @@ export function SettingsPanel() {
         </div>
 
         <div style={sectionLabel}>Appearance</div>
-        <div style={stack}>
-          {row(
-            state.theme === 'dark' ? 'Light mode' : 'Dark mode',
-            actions.toggleTheme,
-            state.theme === 'dark' ? <SunIcon size={18} /> : <MoonIcon size={18} />,
-          )}
+        <div
+          role="radiogroup"
+          aria-label="Theme"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+            gap: 8,
+          }}
+        >
+          {(
+            [
+              { id: 'system', label: 'System', icon: <MonitorIcon size={18} /> },
+              { id: 'light', label: 'Light', icon: <SunIcon size={18} /> },
+              { id: 'dark', label: 'Dark', icon: <MoonIcon size={18} /> },
+            ] as const
+          ).map((theme) => {
+            const active = state.theme === theme.id;
+            return (
+              <button
+                key={theme.id}
+                role="radio"
+                aria-checked={active}
+                onClick={() => actions.setTheme(theme.id as ThemeMode)}
+                className="pr-press"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 7,
+                  minHeight: 42,
+                  padding: '10px 8px',
+                  border: `1px solid ${active ? p.accent : p.borderSoft}`,
+                  borderRadius: 12,
+                  background: active ? p.accentTintBg : p.card,
+                  color: active ? p.accent : p.text,
+                  fontWeight: 700,
+                  fontSize: 13.5,
+                  cursor: 'pointer',
+                }}
+              >
+                {theme.icon}
+                <span>{theme.label}</span>
+              </button>
+            );
+          })}
         </div>
 
         <div style={sectionLabel}>Sharing</div>
