@@ -32,7 +32,16 @@ import { buildShareUrl } from '../lib/share';
 import { parseIngredients } from '../lib/parseIngredients';
 import { suggestEmoji } from '../data/emoji';
 import * as sync from '../lib/sync';
-import type { HouseholdRef, Op, ServerMsg, SyncItem, SyncMember } from '../lib/sync';
+import type {
+  HouseholdRef,
+  NotifyPrefs,
+  Op,
+  ServerMsg,
+  SyncItem,
+  SyncMember,
+} from '../lib/sync';
+
+const DEFAULT_NOTIFY_PREFS: NotifyPrefs = { adds: true, checked: false, cleared: true };
 
 // Bumped v2 -> v3 with the move to a clean (empty) first-run state, so existing
 // installs reset to the fresh experience too. Exported for the test fixture.
@@ -117,6 +126,8 @@ export interface AppState extends PersistedState {
   supermarket: string | null;
   /** The settings drawer is open. */
   settingsOpen: boolean;
+  /** This member's notification preferences (server-authoritative, per household). */
+  notifyPrefs: NotifyPrefs;
 }
 
 function loadPersisted(): Partial<PersistedState> {
@@ -177,6 +188,7 @@ function makeInitialState(): AppState {
     tourOpen: false,
     supermarket: loadSupermarket(),
     settingsOpen: false,
+    notifyPrefs: DEFAULT_NOTIFY_PREFS,
     // A fresh install starts empty — a clean slate to build a real list on.
     // Persisted data is normalised on load; Array.isArray (not ??) so an
     // intentionally-empty list/plan is preserved.
@@ -270,6 +282,7 @@ export interface Actions {
   joinHousehold: (id: string, name: string) => Promise<void>;
   leaveHousehold: () => void;
   nudge: (message?: string) => Promise<void>;
+  setNotifyPref: (key: keyof NotifyPrefs, value: boolean) => void;
   requestJoin: (id: string) => void;
   cancelJoin: () => void;
   dismissWelcome: () => void;
@@ -376,6 +389,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             recipes: msg.recipes.map(ops.normalizeRecipe),
             plan: ops.normalizePlan(msg.plan),
             pantry: ops.normalizeStringArray(msg.pantry),
+            ...(msg.prefs ? { notifyPrefs: msg.prefs } : {}),
           });
           break;
         case 'item': {
@@ -1211,6 +1225,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (res.ok && res.sent > 0) showToast('Nudge sent 📣');
         else if (res.ok) showToast('No one to nudge yet — ask them to turn on alerts');
         else showToast('Couldn’t send the nudge');
+      },
+
+      setNotifyPref: (key, value) => {
+        // Optimistic; the server echoes the saved prefs on the next reconnect.
+        dispatch((s) => ({ notifyPrefs: { ...s.notifyPrefs, [key]: value } }));
+        const h = stateRef.current.household;
+        if (h) void sync.sendNotifyPrefs(h.id, h.memberId, { [key]: value });
       },
 
       requestJoin: (id) => dispatch({ pendingJoin: id }),

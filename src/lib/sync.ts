@@ -22,6 +22,13 @@ export interface SyncMember {
   joinedAt: number;
 }
 
+/** Which household events should push a notification to this member. */
+export interface NotifyPrefs {
+  adds: boolean;
+  checked: boolean;
+  cleared: boolean;
+}
+
 export interface SyncIngredient {
   name: string;
   emoji: string;
@@ -72,6 +79,7 @@ export type ServerMsg =
       recipes: SyncRecipe[];
       plan: SyncPlan;
       pantry: string[];
+      prefs?: NotifyPrefs;
     }
   | { t: 'item'; item: SyncItem }
   | { t: 'remove'; key: string }
@@ -267,6 +275,25 @@ export async function fetchHouseholdPreview(
     const res = await fetch(`${API_BASE}/api/household/${id}/state`);
     if (!res.ok) return null;
     return (await res.json()) as { items: SyncItem[]; members: SyncMember[] };
+  } catch {
+    return null;
+  }
+}
+
+/** Save which household events notify this member. Returns the stored prefs. */
+export async function sendNotifyPrefs(
+  id: string,
+  memberId: string,
+  prefs: Partial<NotifyPrefs>,
+): Promise<{ ok: boolean; prefs: NotifyPrefs } | null> {
+  try {
+    const res = await fetch(`${API_BASE}/api/household/${id}/notify-prefs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ memberId, prefs }),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as { ok: boolean; prefs: NotifyPrefs };
   } catch {
     return null;
   }

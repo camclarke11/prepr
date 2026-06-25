@@ -3,6 +3,7 @@ import { buildPushHTTPRequest } from '@pushforge/builder';
 import type { Env } from './env';
 import type {
   ClientMsg,
+  NotifyPrefs,
   Op,
   ServerMsg,
   SyncItem,
@@ -89,7 +90,9 @@ export class HouseholdDO extends DurableObject<Env> {
           color TEXT NOT NULL,
           initial TEXT NOT NULL,
           joined_at INTEGER NOT NULL,
-          notify_adds INTEGER NOT NULL DEFAULT 1
+          notify_adds INTEGER NOT NULL DEFAULT 1,
+          notify_checked INTEGER NOT NULL DEFAULT 0,
+          notify_cleared INTEGER NOT NULL DEFAULT 1
         );
         CREATE TABLE IF NOT EXISTS subscriptions (
           id TEXT PRIMARY KEY,
@@ -121,12 +124,16 @@ export class HouseholdDO extends DurableObject<Env> {
       `);
       // For DOs created before notify_adds existed (ALTER is idempotent here via
       // the catch — SQLite has no ADD COLUMN IF NOT EXISTS).
-      try {
-        this.sql.exec(
-          'ALTER TABLE members ADD COLUMN notify_adds INTEGER NOT NULL DEFAULT 1',
-        );
-      } catch {
-        /* column already exists */
+      for (const col of [
+        'notify_adds INTEGER NOT NULL DEFAULT 1',
+        'notify_checked INTEGER NOT NULL DEFAULT 0',
+        'notify_cleared INTEGER NOT NULL DEFAULT 1',
+      ]) {
+        try {
+          this.sql.exec(`ALTER TABLE members ADD COLUMN ${col}`);
+        } catch {
+          /* column already exists */
+        }
       }
     });
   }
@@ -177,6 +184,7 @@ export class HouseholdDO extends DurableObject<Env> {
     const result = this.applyOp(op, memberId);
     for (const msg of result.messages) this.broadcast(msg);
     await this.queueNotifications(memberId, result.added);
+    await this.notifyEvent(memberId, op);
     return { ok: true };
   }
 
@@ -201,6 +209,45 @@ export class HouseholdDO extends DurableObject<Env> {
     return { ok: true };
   }
 
+  /** Read a member's notification preferences (defaults for an unknown member). */
+  private notifyPrefs(memberId: string): NotifyPrefs {
+    const r = this.sql
+      .exec<{ notify_adds: number; notify_checked: number; notify_cleared: number }>(
+        'SELECT notify_adds, notify_checked, notify_cleared FROM members WHERE id = ?',
+        memberId,
+      )
+      .toArray()[0];
+    return {
+      adds: r ? r.notify_adds === 1 : true,
+      checked: r ? r.notify_checked === 1 : false,
+      cleared: r ? r.notify_cleared === 1 : true,
+    };
+  }
+
+  /** Update which events notify a member. Returns the saved prefs. */
+  setNotifyPrefs(
+    memberId: string,
+    prefs: Partial<NotifyPrefs>,
+  ): { ok: boolean; prefs: NotifyPrefs } {
+    if (!this.memberExists(memberId)) {
+      return { ok: false, prefs: this.notifyPrefs(memberId) };
+    }
+    const cur = this.notifyPrefs(memberId);
+    const next: NotifyPrefs = {
+      adds: prefs.adds ?? cur.adds,
+      checked: prefs.checked ?? cur.checked,
+      cleared: prefs.cleared ?? cur.cleared,
+    };
+    this.sql.exec(
+      'UPDATE members SET notify_adds = ?, notify_checked = ?, notify_cleared = ? WHERE id = ?',
+      next.adds ? 1 : 0,
+      next.checked ? 1 : 0,
+      next.cleared ? 1 : 0,
+      memberId,
+    );
+    return { ok: true, prefs: next };
+  }
+
   /**
    * Ping the rest of the household with a short message ("heading to the shop —
    * anything else?"). A deliberate poke, so it ignores the notify_adds mute.
@@ -213,7 +260,7 @@ export class HouseholdDO extends DurableObject<Env> {
     const sent = await this.sendPush(
       memberId,
       { title: this.memberName(memberId), body, tag: 'prepr-nudge' },
-      { onlyNotifyAdds: false },
+      {},
     );
     return { ok: true, sent };
   }
@@ -230,8 +277,15 @@ export class HouseholdDO extends DurableObject<Env> {
     const [client, server] = Object.values(pair);
     this.ctx.acceptWebSocket(server);
     server.serializeAttachment({ memberId } satisfies SocketMeta);
-    // Send the current state to the freshly-connected client.
-    server.send(JSON.stringify({ t: 'state', ...this.snapshot() } satisfies ServerMsg));
+    // Send the current state to the freshly-connected client, carrying its own
+    // notification preferences so the settings UI can reflect them.
+    server.send(
+      JSON.stringify({
+        t: 'state',
+        ...this.snapshot(),
+        prefs: this.notifyPrefs(memberId),
+      } satisfies ServerMsg),
+    );
     return new Response(null, { status: 101, webSocket: client });
   }
 
@@ -254,6 +308,7 @@ export class HouseholdDO extends DurableObject<Env> {
     const result = this.applyOp(msg.op, memberId);
     for (const m of result.messages) this.broadcast(m);
     await this.queueNotifications(memberId, result.added);
+    await this.notifyEvent(memberId, msg.op);
   }
 
   async webSocketClose(
@@ -507,31 +562,68 @@ export class HouseholdDO extends DurableObject<Env> {
     await this.sendPush(
       actorId,
       { title: 'prepr', body, tag: 'prepr-grocery' },
-      { onlyNotifyAdds: true },
+      { prefColumn: 'notify_adds' },
     );
   }
 
   /**
+   * A push for a checked-off item / cleared list, gated by the matching pref.
+   * Fired immediately (these are single low-frequency events, unlike the
+   * batched item-adds).
+   */
+  private async notifyEvent(actorId: string, op: Op): Promise<void> {
+    if (op.kind === 'checked' && op.checked) {
+      const name = this.item(op.key)?.name;
+      if (!name) return;
+      await this.sendPush(
+        actorId,
+        {
+          title: 'prepr',
+          body: `${this.memberName(actorId)} ticked off ${name}`,
+          tag: 'prepr-checked',
+        },
+        { prefColumn: 'notify_checked', defaultOn: false },
+      );
+    } else if (op.kind === 'clear') {
+      await this.sendPush(
+        actorId,
+        {
+          title: 'prepr',
+          body: `${this.memberName(actorId)} cleared the list`,
+          tag: 'prepr-cleared',
+        },
+        { prefColumn: 'notify_cleared' },
+      );
+    }
+  }
+
+  /**
    * Web Push a payload to every member except the actor (best-effort). Returns
-   * how many live subscriptions it reached. `onlyNotifyAdds` restricts to
-   * members who haven't muted item-add pings; a deliberate nudge ignores it.
+   * how many live subscriptions it reached. `prefColumn` restricts to members
+   * who haven't muted that event (defaulting on unless `defaultOn: false`); a
+   * deliberate nudge passes no column and reaches everyone.
    */
   private async sendPush(
     actorId: string,
     payload: { title: string; body: string; tag: string },
-    opts: { onlyNotifyAdds: boolean },
+    opts: {
+      prefColumn?: 'notify_adds' | 'notify_checked' | 'notify_cleared';
+      defaultOn?: boolean;
+    } = {},
   ): Promise<number> {
     const privateJWK = this.env.VAPID_PRIVATE_KEY;
     const adminContact = this.env.VAPID_SUBJECT;
     if (!privateJWK || !adminContact) return 0; // push not configured yet
 
+    // prefColumn is from a fixed internal set, never user input — safe to inline.
+    const gate = opts.prefColumn
+      ? ` AND COALESCE(m.${opts.prefColumn}, ${opts.defaultOn === false ? 0 : 1}) = 1`
+      : '';
     const subs = this.sql
       .exec<{ endpoint: string; p256dh: string; auth: string }>(
         `SELECT s.endpoint, s.p256dh, s.auth FROM subscriptions s
          JOIN members m ON m.id = s.member_id
-         WHERE s.member_id != ?${
-           opts.onlyNotifyAdds ? ' AND COALESCE(m.notify_adds, 1) = 1' : ''
-         }`,
+         WHERE s.member_id != ?${gate}`,
         actorId,
       )
       .toArray();

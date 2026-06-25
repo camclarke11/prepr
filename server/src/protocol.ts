@@ -23,6 +23,13 @@ export interface SyncMember {
   joinedAt: number;
 }
 
+/** Which household events should push a notification to a given member. */
+export interface NotifyPrefs {
+  adds: boolean;
+  checked: boolean;
+  cleared: boolean;
+}
+
 export interface SyncIngredient {
   name: string;
   emoji: string;
@@ -79,6 +86,8 @@ export type ServerMsg =
       recipes: SyncRecipe[];
       plan: SyncPlan;
       pantry: string[];
+      /** The connecting member's own notification preferences. */
+      prefs?: NotifyPrefs;
     }
   | { t: 'item'; item: SyncItem }
   | { t: 'remove'; key: string }
