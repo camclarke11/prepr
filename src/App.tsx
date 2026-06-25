@@ -12,6 +12,7 @@ import { RecipeDetail } from './components/RecipeDetail';
 import { CreateRecipe } from './components/CreateRecipe';
 import { ItemDetail } from './components/ItemDetail';
 import { CookMode } from './components/CookMode';
+import { ActivityPanel } from './components/ActivityPanel';
 import { MembersModal } from './components/MembersModal';
 import { JoinPrompt } from './components/JoinPrompt';
 import { Welcome } from './components/Welcome';
@@ -227,6 +228,7 @@ export function App() {
       {state.welcomeOpen && <Welcome />}
       {state.tourOpen && <Tour />}
       {state.settingsOpen && <SettingsPanel />}
+      {state.activityOpen && <ActivityPanel />}
       {helpOpen && <HelpOverlay onClose={() => setHelpOpen(false)} />}
       <UpdateBanner />
       <Toast />

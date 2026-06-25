@@ -267,6 +267,7 @@ export function SettingsPanel() {
             chevron,
           )}
           {state.household && row('Copy invite link', actions.shareLink)}
+          {state.household && row('Activity', actions.openActivity, chevron)}
         </div>
 
         {state.household && (

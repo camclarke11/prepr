@@ -33,6 +33,7 @@ import { parseIngredients } from '../lib/parseIngredients';
 import { suggestEmoji } from '../data/emoji';
 import * as sync from '../lib/sync';
 import type {
+  ActivityEvent,
   HouseholdRef,
   NotifyPrefs,
   Op,
@@ -128,6 +129,10 @@ export interface AppState extends PersistedState {
   settingsOpen: boolean;
   /** This member's notification preferences (server-authoritative, per household). */
   notifyPrefs: NotifyPrefs;
+  /** Household activity feed (newest last); server-authoritative. */
+  activity: ActivityEvent[];
+  /** The activity-feed panel is open. */
+  activityOpen: boolean;
 }
 
 function loadPersisted(): Partial<PersistedState> {
@@ -189,6 +194,8 @@ function makeInitialState(): AppState {
     supermarket: loadSupermarket(),
     settingsOpen: false,
     notifyPrefs: DEFAULT_NOTIFY_PREFS,
+    activity: [],
+    activityOpen: false,
     // A fresh install starts empty — a clean slate to build a real list on.
     // Persisted data is normalised on load; Array.isArray (not ??) so an
     // intentionally-empty list/plan is preserved.
@@ -293,6 +300,8 @@ export interface Actions {
   setSupermarket: (id: string | null) => void;
   openSettings: () => void;
   closeSettings: () => void;
+  openActivity: () => void;
+  closeActivity: () => void;
 }
 
 interface StoreValue {
@@ -390,6 +399,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             plan: ops.normalizePlan(msg.plan),
             pantry: ops.normalizeStringArray(msg.pantry),
             ...(msg.prefs ? { notifyPrefs: msg.prefs } : {}),
+            ...(msg.activity ? { activity: msg.activity } : {}),
           });
           break;
         case 'item': {
@@ -445,6 +455,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
                 : [...s.pantry, msg.name]
               : s.pantry.filter((x) => x !== msg.name),
           }));
+          break;
+        case 'activity':
+          dispatch((s) => ({ activity: [...s.activity, msg.event].slice(-200) }));
           break;
         case 'pong':
           break;
@@ -1211,6 +1224,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           household: null,
           members: DEFAULT_MEMBERS,
           activeMember: DEFAULT_MEMBERS[0].name,
+          activity: [],
+          activityOpen: false,
+          notifyPrefs: DEFAULT_NOTIFY_PREFS,
         });
         showToast('Left the shared list');
       },
@@ -1275,6 +1291,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       },
       openSettings: () => dispatch({ settingsOpen: true }),
       closeSettings: () => dispatch({ settingsOpen: false }),
+      openActivity: () => dispatch({ activityOpen: true, settingsOpen: false }),
+      closeActivity: () => dispatch({ activityOpen: false }),
     };
   }, []);
 

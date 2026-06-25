@@ -2,6 +2,7 @@ import { DurableObject } from 'cloudflare:workers';
 import { buildPushHTTPRequest } from '@pushforge/builder';
 import type { Env } from './env';
 import type {
+  ActivityEvent,
   ClientMsg,
   NotifyPrefs,
   Op,
@@ -20,6 +21,7 @@ interface Snapshot {
   recipes: SyncRecipe[];
   plan: SyncPlan;
   pantry: string[];
+  activity: ActivityEvent[];
 }
 
 /** Debounce window for batching a burst of adds into one notification. */
@@ -121,6 +123,13 @@ export class HouseholdDO extends DurableObject<Env> {
         CREATE TABLE IF NOT EXISTS pantry (
           name TEXT PRIMARY KEY
         );
+        CREATE TABLE IF NOT EXISTS events (
+          id TEXT PRIMARY KEY,
+          actor TEXT NOT NULL,
+          type TEXT NOT NULL,
+          item TEXT,
+          created_at INTEGER NOT NULL
+        );
       `);
       // For DOs created before notify_adds existed (ALTER is idempotent here via
       // the catch — SQLite has no ADD COLUMN IF NOT EXISTS).
@@ -175,16 +184,72 @@ export class HouseholdDO extends DurableObject<Env> {
       recipes: this.allRecipes(),
       plan: this.planObj(),
       pantry: this.allPantry(),
+      activity: this.allActivity(),
     };
+  }
+
+  /** The most recent activity entries, oldest → newest. */
+  private allActivity(): ActivityEvent[] {
+    return this.sql
+      .exec<{ id: string; actor: string; type: string; item: string | null; created_at: number }>(
+        'SELECT * FROM (SELECT * FROM events ORDER BY created_at DESC LIMIT 50) ORDER BY created_at ASC',
+      )
+      .toArray()
+      .map((r) => ({
+        id: r.id,
+        actor: r.actor,
+        type: r.type as ActivityEvent['type'],
+        item: r.item ?? undefined,
+        at: r.created_at,
+      }));
+  }
+
+  /**
+   * Append activity-feed entries for an op and broadcast them live. `removedName`
+   * is captured by the caller before a 'remove' op deletes the row.
+   */
+  private recordActivity(actorId: string, op: Op, removedName?: string): void {
+    const actor = this.memberName(actorId);
+    const at = Date.now();
+    const mk = (type: ActivityEvent['type'], item?: string): ActivityEvent => ({
+      id: randomToken(10),
+      actor,
+      type,
+      item,
+      at,
+    });
+    let event: ActivityEvent | null = null;
+    if (op.kind === 'upsert') event = mk('add', op.name);
+    else if (op.kind === 'checked' && op.checked)
+      event = mk('check', this.item(op.key)?.name);
+    else if (op.kind === 'remove') event = mk('remove', removedName);
+    else if (op.kind === 'clear') event = mk('clear');
+    if (!event) return;
+
+    this.sql.exec(
+      'INSERT INTO events (id, actor, type, item, created_at) VALUES (?, ?, ?, ?, ?)',
+      event.id,
+      event.actor,
+      event.type,
+      event.item ?? null,
+      event.at,
+    );
+    // Keep the log bounded.
+    this.sql.exec(
+      'DELETE FROM events WHERE id NOT IN (SELECT id FROM events ORDER BY created_at DESC LIMIT 200)',
+    );
+    this.broadcast({ t: 'activity', event });
   }
 
   /** Apply an op received over HTTP (WebSocket is the primary path). */
   async applyOpHttp(op: Op, memberId: string): Promise<{ ok: boolean }> {
     if (!this.memberExists(memberId)) return { ok: false };
+    const removedName = op.kind === 'remove' ? this.item(op.key)?.name : undefined;
     const result = this.applyOp(op, memberId);
     for (const msg of result.messages) this.broadcast(msg);
     await this.queueNotifications(memberId, result.added);
     await this.notifyEvent(memberId, op);
+    this.recordActivity(memberId, op, removedName);
     return { ok: true };
   }
 
@@ -305,10 +370,13 @@ export class HouseholdDO extends DurableObject<Env> {
     const meta = ws.deserializeAttachment() as SocketMeta | null;
     const memberId = meta?.memberId ?? '';
     if (!this.memberExists(memberId)) return;
+    const removedName =
+      msg.op.kind === 'remove' ? this.item(msg.op.key)?.name : undefined;
     const result = this.applyOp(msg.op, memberId);
     for (const m of result.messages) this.broadcast(m);
     await this.queueNotifications(memberId, result.added);
     await this.notifyEvent(memberId, msg.op);
+    this.recordActivity(memberId, msg.op, removedName);
   }
 
   async webSocketClose(
