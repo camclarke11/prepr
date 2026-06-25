@@ -3,7 +3,9 @@ import { useStore } from '../state/store';
 import { usePalette, useIsMobile, useWakeLock } from '../hooks';
 import { fmtQtyUnit } from '../lib/format';
 import { parseStepDuration, formatClock } from '../lib/cookTimer';
+import { recipePantryStaples } from '../state/operations';
 import { ChevronIcon, CheckIcon } from './icons';
+import type { Ingredient } from '../types';
 
 /**
  * Full-screen, one-step-at-a-time cooking companion. Keeps the screen awake
@@ -19,6 +21,11 @@ export function CookMode() {
   const [step, setStep] = useState(0);
   const [done, setDone] = useState(false);
   const [showIngredients, setShowIngredients] = useState(false);
+  // The pantry staples this recipe used, snapshotted when Cook mode opens so the
+  // finish screen's list stays stable as items are restocked, and the names the
+  // cook has chosen to restock.
+  const [usedStaples, setUsedStaples] = useState<Ingredient[]>([]);
+  const [restocked, setRestocked] = useState<string[]>([]);
 
   // A single timer that persists across steps. We track an absolute deadline
   // plus a ticking `now`, so the remaining time is always derived and drift-free.
@@ -30,12 +37,16 @@ export function CookMode() {
 
   useWakeLock(true);
 
-  // Reset everything when the cooked recipe changes.
+  // Reset everything when the cooked recipe changes, snapshotting the pantry
+  // staples it uses (pantry can't change mid-cook, so open-time == finish-time).
   useEffect(() => {
     setStep(0);
     setDone(false);
     setShowIngredients(false);
     setDeadline(null);
+    setRestocked([]);
+    setUsedStaples(recipe ? recipePantryStaples(recipe, state.pantry) : []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.cookRecipeId]);
 
   // Lock the page behind the overlay.
@@ -230,6 +241,12 @@ export function CookMode() {
         <DoneScreen
           recipe={recipe}
           p={p}
+          staples={usedStaples}
+          restocked={restocked}
+          onRestock={(ing) => {
+            actions.restockStaple(ing);
+            setRestocked((r) => [...r, ing.name]);
+          }}
           onAgain={() => {
             setStep(0);
             setDone(false);
@@ -401,14 +418,21 @@ export function CookMode() {
 function DoneScreen({
   recipe,
   p,
+  staples,
+  restocked,
+  onRestock,
   onAgain,
   onClose,
 }: {
   recipe: { name: string; emoji: string };
   p: ReturnType<typeof usePalette>;
+  staples: Ingredient[];
+  restocked: string[];
+  onRestock: (ing: Ingredient) => void;
   onAgain: () => void;
   onClose: () => void;
 }) {
+  const remaining = staples.filter((s) => !restocked.includes(s.name));
   return (
     <div
       style={{
@@ -420,6 +444,7 @@ function DoneScreen({
         textAlign: 'center',
         padding: '24px 28px 40px',
         gap: 6,
+        overflowY: 'auto',
       }}
     >
       <div style={{ fontSize: 76, animation: 'prPop .5s ease' }}>{recipe.emoji}</div>
@@ -436,6 +461,70 @@ function DoneScreen({
       <div style={{ color: p.textMuted, fontWeight: 600, marginBottom: 22 }}>
         You cooked {recipe.name}.
       </div>
+
+      {staples.length > 0 && (
+        <div style={{ width: '100%', maxWidth: 420, marginBottom: 22 }}>
+          <div
+            style={{
+              fontSize: 12,
+              fontWeight: 800,
+              letterSpacing: '0.05em',
+              textTransform: 'uppercase',
+              color: p.textFaint,
+              marginBottom: 4,
+            }}
+          >
+            Running low?
+          </div>
+          <div style={{ fontSize: 13.5, color: p.textMuted, marginBottom: 12 }}>
+            {remaining.length
+              ? 'Tap a staple you used up to add it to your list.'
+              : 'All set — added to your list.'}
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 8,
+              justifyContent: 'center',
+            }}
+          >
+            {staples.map((s) => {
+              const used = restocked.includes(s.name);
+              return (
+                <button
+                  key={s.name}
+                  onClick={() => !used && onRestock(s)}
+                  disabled={used}
+                  aria-label={
+                    used ? `${s.name} added to list` : `Add ${s.name} to your list`
+                  }
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 7,
+                    padding: '8px 13px',
+                    borderRadius: 11,
+                    border: `1px solid ${used ? p.accent : p.border}`,
+                    background: used ? p.accentTintBg : p.card,
+                    color: used ? p.accentTintText : p.text,
+                    fontSize: 14,
+                    fontWeight: 700,
+                    cursor: used ? 'default' : 'pointer',
+                  }}
+                >
+                  <span style={{ fontSize: 17 }}>{s.emoji}</span>
+                  {s.name}
+                  {used && (
+                    <CheckIcon size={14} strokeWidth={3} color={p.accentTintText} />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: 12, width: '100%', maxWidth: 420 }}>
         <button
           onClick={onAgain}

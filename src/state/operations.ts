@@ -486,6 +486,23 @@ export function togglePantry(pantry: string[], name: string): string[] {
   return pantry.includes(name) ? pantry.filter((x) => x !== name) : [...pantry, name];
 }
 
+/**
+ * The pantry staples a recipe draws on — the ingredients you already have on
+ * hand, so they were skipped off the shopping list. After cooking, these are
+ * the things you may have just run low on. Deduped by name.
+ */
+export function recipePantryStaples(recipe: Recipe, pantry: string[]): Ingredient[] {
+  const seen = new Set<string>();
+  const out: Ingredient[] = [];
+  for (const ing of recipe.ingredients) {
+    if (pantry.includes(ing.name) && !seen.has(ing.name)) {
+      seen.add(ing.name);
+      out.push(ing);
+    }
+  }
+  return out;
+}
+
 export function assignMeal(
   plan: Plan,
   day: keyof Plan,
