@@ -22,6 +22,7 @@ import {
   bumpFrequency,
   normalizeFrequency,
   rankUsual,
+  recipePantryStaples,
 } from './operations';
 import type { ListItem, Plan, Recipe } from '../types';
 
@@ -535,5 +536,38 @@ describe('the usual (frequency)', () => {
 
   it('rankUsual respects a custom minimum', () => {
     expect(rankUsual({ a: 1, b: 2 }, [], 1)).toEqual(['b', 'a']);
+  });
+});
+
+describe('recipePantryStaples', () => {
+  const r: Recipe = {
+    id: 'r1',
+    name: 'Test',
+    emoji: '🍲',
+    servings: 2,
+    time: '10 min',
+    ingredients: [
+      { name: 'Apples', emoji: '🍎', qty: 2, unit: '', category: 'Produce' },
+      { name: 'Salt', emoji: '🧂', qty: 1, unit: 'tsp', category: 'Pantry' },
+      { name: 'Olive Oil', emoji: '🫒', qty: 2, unit: 'tbsp', category: 'Pantry' },
+    ],
+    steps: ['Mix'],
+  };
+
+  it('returns only ingredients that are in the pantry', () => {
+    const out = recipePantryStaples(r, ['Salt', 'Olive Oil', 'Garlic']);
+    expect(out.map((i) => i.name)).toEqual(['Salt', 'Olive Oil']);
+  });
+
+  it('is empty when nothing overlaps the pantry', () => {
+    expect(recipePantryStaples(r, ['Garlic'])).toEqual([]);
+  });
+
+  it('dedupes a staple listed twice', () => {
+    const dup: Recipe = {
+      ...r,
+      ingredients: [...r.ingredients, { ...r.ingredients[1] }],
+    };
+    expect(recipePantryStaples(dup, ['Salt']).map((i) => i.name)).toEqual(['Salt']);
   });
 });

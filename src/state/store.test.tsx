@@ -138,6 +138,21 @@ describe('store', () => {
     expect(moved.startsWith('lunch:')).toBe(true);
   });
 
+  it('restocks a staple: off the pantry, onto the list', () => {
+    const { result } = setup();
+    // Garlic is a seeded pantry staple.
+    expect(result.current.state.pantry).toContain('Garlic');
+    act(() =>
+      result.current.actions.restockStaple({
+        name: 'Garlic',
+        emoji: '🧄',
+        category: 'Produce',
+      }),
+    );
+    expect(result.current.state.pantry).not.toContain('Garlic');
+    expect(result.current.state.list.some((x) => x.name === 'Garlic')).toBe(true);
+  });
+
   it('adds the planned week to the list, skipping pantry staples', () => {
     const { result } = setup();
     act(() => result.current.actions.addWeek());

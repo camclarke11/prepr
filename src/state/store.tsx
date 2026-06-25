@@ -240,6 +240,11 @@ export interface Actions {
   ) => void;
   addWeek: () => void;
   togglePantry: (name: string) => void;
+  restockStaple: (ingredient: {
+    name: string;
+    emoji: string;
+    category: CategoryName;
+  }) => void;
   setActiveMember: (name: string) => void;
   addMember: (name: string) => void;
   removeMember: (name: string) => void;
@@ -822,6 +827,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const has = stateRef.current.pantry.includes(name);
         dispatch((s) => ({ pantry: ops.togglePantry(s.pantry, name) }));
         sendOp({ kind: 'pantrySet', name, on: !has });
+      },
+
+      // Ran low on a staple while cooking: take it off the pantry (you've used
+      // it up) and drop it on the shopping list to rebuy — one tap, both sides.
+      restockStaple: ({ name, emoji, category }) => {
+        dispatch((s) => ({
+          pantry: s.pantry.filter((x) => x !== name),
+          list: ops.mergeIntoList(s.list, {
+            name,
+            emoji,
+            category,
+            by: s.activeMember,
+          }),
+        }));
+        sendOp({ kind: 'pantrySet', name, on: false });
+        sendOp({ kind: 'upsert', name, emoji, category });
+        showToast(`${name} → list`);
       },
 
       setActiveMember: (name) => dispatch({ activeMember: name }),
