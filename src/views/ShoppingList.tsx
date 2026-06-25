@@ -8,13 +8,14 @@ import { ActiveTile, CatalogTile, CategoryHeading } from '../components/tiles';
 import { EmojiPicker } from '../components/EmojiPicker';
 import { SmartListPanel } from '../components/SmartListPanel';
 import { SearchIcon } from '../components/icons';
+import { rankUsual } from '../state/operations';
 import type { CategoryName } from '../types';
 
 export function ShoppingListView() {
   const { state, actions } = useStore();
   const p = usePalette();
   const mobile = useIsMobile();
-  const { list, search, recents, flash } = state;
+  const { list, search, recents, frequency, flash } = state;
   const planHasMeals = Object.values(state.plan).some((ids) => ids.length > 0);
 
   const q = search.trim().toLowerCase();
@@ -59,10 +60,24 @@ export function ShoppingListView() {
     setPickerOpen(false);
   };
 
+  // "The usual" — your most-added staples, ready for a one-tap re-add. Hidden
+  // while searching, and items already on the list drop out (nothing to re-add).
+  const onList = (name: string) => list.some((x) => x.name === name);
+  const usualItems = !q
+    ? rankUsual(frequency, recents)
+        .map((id) => CATALOG.find((c) => c.id === id))
+        .filter((c): c is NonNullable<typeof c> => Boolean(c))
+        .filter((c) => !onList(c.name))
+        .slice(0, 8)
+    : [];
+  const usualIds = new Set(usualItems.map((c) => c.id));
+
+  // Recently used sits below "the usual"; don't repeat anything already there.
   const recentItems = !q
     ? recents
         .map((id) => CATALOG.find((c) => c.id === id))
         .filter((c): c is NonNullable<typeof c> => Boolean(c))
+        .filter((c) => !usualIds.has(c.id))
     : [];
 
   return (
@@ -388,6 +403,45 @@ export function ShoppingListView() {
                 p={p}
               />
             )}
+          </div>
+        )}
+
+        {usualItems.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 800,
+                letterSpacing: '0.05em',
+                textTransform: 'uppercase',
+                color: '#8a887f',
+                marginBottom: 10,
+              }}
+            >
+              ✨ The usual
+            </div>
+            <div
+              className="pr-hide-scroll"
+              style={{
+                display: 'flex',
+                gap: 9,
+                overflowX: 'auto',
+                padding: '12px 16px 18px',
+                margin: '-12px -16px -18px',
+              }}
+            >
+              {usualItems.map((c) => (
+                <CatalogTile
+                  key={c.id}
+                  item={c}
+                  cat={categoryByName(c.category)}
+                  p={p}
+                  qty={listQty(c.name)}
+                  flash={flash === c.id}
+                  onAdd={() => actions.addCatalog(c.id)}
+                />
+              ))}
+            </div>
           </div>
         )}
 

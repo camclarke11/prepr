@@ -19,6 +19,7 @@ import type {
 import { DEFAULT_MEMBERS, MEMBER_COLORS, SAMPLE_MEMBERS } from '../theme';
 import {
   CATALOG,
+  SEED_FREQUENCY,
   SEED_PANTRY,
   SEED_RECENTS,
   SEED_RECIPES,
@@ -186,6 +187,7 @@ function makeInitialState(): AppState {
     recents: Array.isArray(saved.recents)
       ? ops.normalizeStringArray(saved.recents)
       : [],
+    frequency: ops.normalizeFrequency(saved.frequency),
     members,
     activeMember,
     theme: normalizeTheme(saved.theme),
@@ -307,6 +309,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       plan: state.plan,
       pantry: state.pantry,
       recents: state.recents,
+      frequency: state.frequency,
       members: state.members,
       activeMember: state.activeMember,
       theme: state.theme,
@@ -324,6 +327,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     state.members,
     state.activeMember,
     state.recents,
+    state.frequency,
     state.theme,
   ]);
 
@@ -475,6 +479,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             by: s.activeMember,
           }),
           recents: ops.pushRecent(s.recents, c.id),
+          frequency: ops.bumpFrequency(s.frequency, c.id),
         }));
         flash(c.id);
         sendOp({ kind: 'upsert', name: c.name, emoji: c.emoji, category: c.category });
@@ -493,6 +498,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               by: s.activeMember,
             }),
             recents: ops.pushRecent(s.recents, c.id),
+            frequency: ops.bumpFrequency(s.frequency, c.id),
             search: '',
           }));
           flash(c.id);
@@ -535,6 +541,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               by: s.activeMember,
             }),
             recents: ops.pushRecent(s.recents, c.id),
+            frequency: ops.bumpFrequency(s.frequency, c.id),
             search: '',
             tab: 'list',
           }));
@@ -970,6 +977,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           plan: s.plan,
           pantry: s.pantry,
           recents: s.recents,
+          frequency: s.frequency,
           members: s.members,
           activeMember: s.activeMember,
           theme: s.theme,
@@ -1025,6 +1033,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             recents: Array.isArray(data.recents)
               ? ops.normalizeStringArray(data.recents)
               : s.recents,
+            frequency:
+              data.frequency && typeof data.frequency === 'object'
+                ? ops.normalizeFrequency(data.frequency)
+                : s.frequency,
             members,
             activeMember,
             theme: normalizeTheme(data.theme, s.theme),
@@ -1044,6 +1056,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           plan: s.plan,
           pantry: s.pantry,
           recents: s.recents,
+          frequency: s.frequency,
           members: s.members,
           activeMember: s.activeMember,
           theme: s.theme,
@@ -1066,6 +1079,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           plan: seedPlan(),
           pantry: SEED_PANTRY,
           recents: SEED_RECENTS,
+          frequency: SEED_FREQUENCY,
           members: SAMPLE_MEMBERS,
           activeMember: SAMPLE_MEMBERS[0].name,
           openRecipe: null,

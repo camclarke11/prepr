@@ -19,6 +19,9 @@ import {
   normalizePlan,
   normalizeRecipe,
   normalizeStringArray,
+  bumpFrequency,
+  normalizeFrequency,
+  rankUsual,
 } from './operations';
 import type { ListItem, Plan, Recipe } from '../types';
 
@@ -494,5 +497,43 @@ describe('normalizePlan', () => {
       'Wed',
     ]);
     expect(out.Mon).toEqual([]);
+  });
+});
+
+describe('the usual (frequency)', () => {
+  it('bumpFrequency increments per id from zero', () => {
+    let f: Record<string, number> = {};
+    f = bumpFrequency(f, 'milk');
+    f = bumpFrequency(f, 'milk');
+    f = bumpFrequency(f, 'eggs');
+    expect(f).toEqual({ milk: 2, eggs: 1 });
+  });
+
+  it('normalizeFrequency drops non-positive / non-numeric / empty-key entries', () => {
+    const out = normalizeFrequency({
+      milk: 3,
+      eggs: 0,
+      bread: -2,
+      coffee: 'lots',
+      '': 4,
+      bananas: 2.7,
+    });
+    expect(out).toEqual({ milk: 3, bananas: 2 });
+  });
+
+  it('normalizeFrequency returns {} for garbage', () => {
+    expect(normalizeFrequency(null)).toEqual({});
+    expect(normalizeFrequency([1, 2, 3])).toEqual({});
+  });
+
+  it('rankUsual orders by count, then recency, and applies the min threshold', () => {
+    const freq = { milk: 5, eggs: 5, bread: 3, gum: 1 };
+    // eggs is more recent than milk, so it wins the count tie.
+    const out = rankUsual(freq, ['eggs', 'milk']);
+    expect(out).toEqual(['eggs', 'milk', 'bread']); // gum (1) is below min=2
+  });
+
+  it('rankUsual respects a custom minimum', () => {
+    expect(rankUsual({ a: 1, b: 2 }, [], 1)).toEqual(['b', 'a']);
   });
 });

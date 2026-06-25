@@ -8,6 +8,7 @@ import {
   SEED_RECIPES,
   SEED_PANTRY,
   SEED_RECENTS,
+  SEED_FREQUENCY,
 } from '../data/seed';
 import { SAMPLE_MEMBERS } from '../theme';
 
@@ -23,6 +24,7 @@ beforeEach(() => {
       plan: seedPlan(),
       pantry: SEED_PANTRY,
       recents: SEED_RECENTS,
+      frequency: SEED_FREQUENCY,
       members: SAMPLE_MEMBERS,
       activeMember: 'You',
       theme: 'light',
