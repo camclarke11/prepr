@@ -52,15 +52,36 @@ export function RecipeDetail() {
       <div
         style={{
           position: 'relative',
-          height: 140,
+          height: recipe.image ? 200 : 140,
           background: tint,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          overflow: 'hidden',
         }}
       >
+        {recipe.image && (
+          <img
+            src={recipe.image}
+            alt=""
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+            }}
+          />
+        )}
         <div
-          style={{ position: 'absolute', top: 14, right: 14, display: 'flex', gap: 8 }}
+          style={{
+            position: 'absolute',
+            top: 14,
+            right: 14,
+            display: 'flex',
+            gap: 8,
+            zIndex: 1,
+          }}
         >
           <button
             onClick={() => actions.openEdit(recipe.id)}
@@ -84,7 +105,7 @@ export function RecipeDetail() {
             ×
           </button>
         </div>
-        <span style={{ fontSize: 62 }}>{recipe.emoji}</span>
+        {!recipe.image && <span style={{ fontSize: 62 }}>{recipe.emoji}</span>}
       </div>
 
       <div style={{ padding: '22px 24px 24px', overflowY: 'auto' }}>

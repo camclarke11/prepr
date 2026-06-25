@@ -60,6 +60,8 @@ export interface Recipe {
   custom?: boolean;
   /** Recipe ids marked as favourites surface first. */
   favorite?: boolean;
+  /** Optional photo URL (stored in R2, served by the API). */
+  image?: string;
 }
 
 export type DayKey = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';

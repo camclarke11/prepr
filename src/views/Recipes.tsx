@@ -116,9 +116,25 @@ export function RecipesView() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  overflow: 'hidden',
                 }}
               >
-                <span style={{ fontSize: 50 }}>{r.emoji}</span>
+                {r.image ? (
+                  <img
+                    src={r.image}
+                    alt=""
+                    loading="lazy"
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                    }}
+                  />
+                ) : (
+                  <span style={{ fontSize: 50 }}>{r.emoji}</span>
+                )}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();

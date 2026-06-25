@@ -4,6 +4,7 @@ import { randomToken } from './lib';
 import { importRecipe, importRecipeText } from './recipeImport';
 import { searchFood } from './food';
 import { buildSmartList } from './smartList';
+import { uploadPhoto, servePhoto } from './photos';
 
 export { HouseholdDO } from './household';
 
@@ -45,6 +46,27 @@ export default {
           store?: string;
         }>(request);
         return json({ items: await buildSmartList(items ?? [], env, store) }, cors);
+      }
+
+      // POST /api/image -> store a recipe photo in R2, return its served URL
+      if (
+        request.method === 'POST' &&
+        parts.length === 2 &&
+        parts[0] === 'api' &&
+        parts[1] === 'image'
+      ) {
+        const result = await uploadPhoto(request, env);
+        return json(result, cors, result.error ? 400 : 200);
+      }
+
+      // GET /api/image/:key -> serve a stored recipe photo
+      if (
+        request.method === 'GET' &&
+        parts.length === 3 &&
+        parts[0] === 'api' &&
+        parts[1] === 'image'
+      ) {
+        return servePhoto(parts[2], env);
       }
 
       // GET /api/food?q=... -> nutrition matches from Open Food Facts

@@ -59,6 +59,7 @@ export interface SyncRecipe {
   steps: string[];
   custom?: boolean;
   favorite?: boolean;
+  image?: string;
 }
 
 /** day key (Mon..Sun) -> recipe ids planned for it. */

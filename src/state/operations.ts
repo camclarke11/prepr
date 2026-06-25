@@ -317,6 +317,8 @@ export interface RecipeDraft {
   time: string;
   ingredients: { name: string; qty: string; unit: string }[];
   stepsText: string;
+  /** Optional photo URL (R2), set after upload. */
+  image?: string;
 }
 
 /** Build a Recipe from a draft, resolving emojis/categories from the catalog. */
@@ -354,6 +356,7 @@ export function recipeFromDraft(
     ingredients,
     steps: steps.length ? steps : ['Enjoy!'],
     custom: true,
+    image: draft.image?.trim() ? draft.image.trim() : undefined,
   };
 }
 
@@ -399,6 +402,8 @@ export function normalizeRecipe(input: unknown): Recipe {
       : [],
     custom: r.custom === true ? true : undefined,
     favorite: r.favorite === true ? true : undefined,
+    image:
+      typeof r.image === 'string' && /^https?:\/\//.test(r.image) ? r.image : undefined,
   };
 }
 

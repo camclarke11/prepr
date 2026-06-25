@@ -9,6 +9,8 @@
   "durable_objects": {
     "bindings": [{ "name": "HOUSEHOLD", "class_name": "HouseholdDO" }]
   },
+  // R2 bucket for optional recipe photos (uploaded + served by the Worker).
+  "r2_buckets": [{ "binding": "PHOTOS", "bucket_name": "prepr-recipe-photos" }],
   // Workers AI — used to normalise an imported recipe webpage into our schema.
   "ai": { "binding": "AI" },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["HouseholdDO"] }],

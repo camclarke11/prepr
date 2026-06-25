@@ -430,6 +430,16 @@ describe('normalizeRecipe', () => {
     expect(normalizeRecipe(null).servings).toBe(4);
     expect(normalizeRecipe(undefined).ingredients).toEqual([]);
   });
+
+  it('keeps a valid image URL but drops a non-URL', () => {
+    expect(normalizeRecipe({ name: 'X', image: 'https://x/img.jpg' }).image).toBe(
+      'https://x/img.jpg',
+    );
+    expect(
+      normalizeRecipe({ name: 'X', image: 'javascript:alert(1)' }).image,
+    ).toBeUndefined();
+    expect(normalizeRecipe({ name: 'X', image: 123 }).image).toBeUndefined();
+  });
 });
 
 describe('listKey', () => {
